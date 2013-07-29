@@ -2,3 +2,8 @@
 /pom.xml
 /.lein-*
 /.env
+*jar
+/lib/
+/classes/
+/targets/
+.lein-deps-sum
