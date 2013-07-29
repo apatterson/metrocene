@@ -6,7 +6,7 @@
             [lein-ring "0.8.3"]]
   :uberjar-name "metrocene-standalone.jar"
   :hooks [leiningen.cljsbuild]
-  :source-paths ["src/clj" "src/cljs"]
+  :source-paths ["src/clj"]
   :cljsbuild { 
     :builds {
       :main {
