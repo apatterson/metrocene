@@ -1,4 +1,4 @@
-(ns hello-clojurescript)
+(ns metrocene.core)
 
 (defn handle-click []
   (js/alert "Hello, Anthony"))
