@@ -13,8 +13,19 @@
   (let [circle (-> svg (.selectAll "circle") 
                    (.data data)
                    (.enter)
-                   (.append "circle"))]
-    (-> circle (.attr {:cx 350 :cy #(str %1) :r 30}))))
+                   (.append "circle"))
+        dragmove #(this-as this
+                           (-> d3 
+                               (.select this)
+                               (.attr {:cx (-> d3 .-event .-x)
+                                       :cy (-> d3 .-event .-y)})))
+        drag (-> d3 
+                 .-behavior 
+                 .drag
+                 (.on "drag" dragmove))]
+    (-> circle 
+        (.attr {:cx 350 :cy #(str %1) :r 30})
+        (.call drag))))
 
 (update [100 200])
 
