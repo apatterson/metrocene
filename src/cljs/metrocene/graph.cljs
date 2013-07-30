@@ -7,7 +7,7 @@
 (def height 500)
 
 (def svg (-> d3 (.select "body") (.append "svg")
-      (.attr {:width width :height height})))
+      #_(.attr {:width width :height height})))
 
 (defn update [data]
   (let [circle (-> svg (.selectAll "circle") 
