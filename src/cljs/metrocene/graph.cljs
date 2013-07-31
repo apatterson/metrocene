@@ -3,14 +3,10 @@
 
 (strokes/bootstrap)
 
-(def width 960)
-(def height 500)
-
-(def svg (-> d3 (.select "body") (.append "svg")
-      #_(.attr {:width width :height height})))
+(def svg (-> d3 (.select "body") (.append "svg")))
 
 (defn update [data]
-  (let [circle (-> svg (.selectAll "circle") 
+  (let [circle (-> svg (.selectAll "circle")
                    (.data data)
                    (.enter)
                    (.append "circle"))
@@ -19,10 +15,19 @@
                                (.select this)
                                (.attr {:cx (-> d3 .-event .-x)
                                        :cy (-> d3 .-event .-y)})))
+        circles (-> svg (.selectAll "circle"))
+        dragmoveend #(-> circles
+                         (.attr {:r (fn [d i] 
+                                      (this-as this
+                                               (if (< 
+                                                    (-> this .-cx .-animVal
+                                                        .-value) 
+                                                    200) 20 40)))}))
         drag (-> d3 
                  .-behavior 
                  .drag
-                 (.on "drag" dragmove))]
+                 (.on "drag" dragmove)
+                 (.on "dragend" dragmoveend))]
     (-> circle 
         (.attr {:cx 350 :cy #(str %1) :r 30})
         (.call drag))))
