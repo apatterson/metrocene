@@ -6,7 +6,12 @@
 (def svg (-> d3 (.select "body") (.append "svg")))
 
 (defn update [data]
-  (let [circle (-> svg (.selectAll "circle")
+  (let [weight (fn [l r] (if (or (= l r) (> (:y l) (:y r))) 
+                           0 
+                           (if (> (:x l) (:x r)) 
+                             1 
+                             -1)))
+        circle (-> svg (.selectAll "circle")
                    (.data data :id)
                    (.enter)
                    (.append "circle"))
@@ -26,12 +31,12 @@
                             (.attr {:cx (fn [d i] (:x d))
                                     :cy (fn [d i] (:y d))})))
                        (.attr circles {:r (fn [d i] 
-                                            (-> (filter (fn [c] (< (:x c) 
-                                                                   (:x d))) 
+                                            (-> (reduce (fn [acc c] 
+                                                          (+ acc (weight c d)))
+                                                        0
                                                         (.data circles))
-                                                count
                                                 (* 10)
-                                                (+ 10)))}))
+                                                (+ 30)))}))
         drag (-> d3 
                  .-behavior 
                  .drag
@@ -42,4 +47,5 @@
         (.call drag))))
 
 (update [{:id "a" :x 100 :y 100 :r 20}
-         {:id "b" :x 200 :y 200 :r 20}])
+         {:id "b" :x 200 :y 200 :r 20}
+         {:id "c" :x 300 :y 300 :r 20}])
