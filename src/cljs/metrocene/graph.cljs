@@ -7,7 +7,7 @@
 
 (defn update [data]
   (let [circle (-> svg (.selectAll "circle")
-                   (.data data)
+                   (.data data :id)
                    (.enter)
                    (.append "circle"))
         dragmove #(this-as this
@@ -16,26 +16,30 @@
                                (.attr {:cx (-> d3 .-event .-x)
                                        :cy (-> d3 .-event .-y)})))
         circles (-> svg (.selectAll "circle"))
-        dragmoveend #(-> circles
-                         (.attr {:r (fn [d i] 
-                                      (this-as this
-                                               (if (< 
-                                                    (-> this .-cx .-animVal
-                                                        .-value) 
-                                                    200) 20 40)))}))
+        dragmoveend #(do
+                       (this-as 
+                        this
+                        (-> d3
+                            (.select this)
+                            (.data (fn [d i] [{:x (-> this .-cx .-animVal .-value)
+                                               :y (-> this .-cy .-animVal .-value)}]))
+                            (.attr {:cx (fn [d i] (:x d))
+                                    :cy (fn [d i] (:y d))})))
+                       (.attr circles {:r (fn [d i] 
+                                            (-> (filter (fn [c] (< (:x c) 
+                                                                   (:x d))) 
+                                                        (.data circles))
+                                                count
+                                                (* 10)
+                                                (+ 10)))}))
         drag (-> d3 
                  .-behavior 
                  .drag
                  (.on "drag" dragmove)
                  (.on "dragend" dragmoveend))]
     (-> circle 
-        (.attr {:cx 350 :cy #(str %1) :r 30})
+        (.attr {:cx #(:x %) :cy #(:y %) :r #(:r %)})
         (.call drag))))
 
-(update [100 200])
-
-(.setInterval 
- js/window 
- (fn []
-   (update [100 200 300]))
- 2000)
+(update [{:id "a" :x 100 :y 100 :r 20}
+         {:id "b" :x 200 :y 200 :r 20}])

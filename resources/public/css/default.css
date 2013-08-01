@@ -1,0 +1,10 @@
+circle {
+  fill:green;
+  fill-opacity: 0.8;
+}
+
+circle:hover {
+  fill-opacity: 0.5;
+}
+
+
