@@ -11,41 +11,48 @@
                            (if (> (:x l) (:x r)) 
                              1 
                              -1)))
-        circle (-> svg (.selectAll "circle")
-                   (.data data :id)
-                   (.enter)
-                   (.append "circle"))
+        node (-> svg (.selectAll "g.node")
+                 (.data data :id)
+                 (.enter)
+                 (.append "g")
+                 (.attr "class" "node" ))
+        circle (-> node
+                   (.append "circle")
+                   (.attr "r" 20))
+        text (-> node
+                 (.append "text")
+                 (.text #(:name %1)))
         dragmove #(this-as this
                            (-> d3 
                                (.select this)
-                               (.attr {:cx (-> d3 .-event .-x)
-                                       :cy (-> d3 .-event .-y)})))
-        circles (-> svg (.selectAll "circle"))
+                               (.data [{:id (fn [d i] (:id d))
+                                        :x (-> d3 .-event .-x)
+                                        :y (-> d3 .-event .-y)}])
+                               (.attr {:transform (str "translate(" 
+                                                       (-> d3 .-event .-x) ","
+                                                       (-> d3 .-event .-y) ")")})))
         dragmoveend #(do
                        (this-as 
                         this
-                        (-> d3
-                            (.select this)
-                            (.data (fn [d i] [{:x (-> this .-cx .-animVal .-value)
-                                               :y (-> this .-cy .-animVal .-value)}]))
-                            (.attr {:cx (fn [d i] (:x d))
-                                    :cy (fn [d i] (:y d))})))
-                       (.attr circles {:r (fn [d i] 
-                                            (-> (reduce (fn [acc c] 
-                                                          (+ acc (weight c d)))
-                                                        0
-                                                        (.data circles))
-                                                (* 10)
-                                                (+ 30)))}))
+                        (.log js/console (-> d3 (.select this) .data)))
+                       (-> node
+                           (.select "circle")
+                           (.attr {:r (fn [d i] 
+                                        (-> (reduce (fn [acc c] 
+                                                      (+ acc (weight c d)))
+                                                    0
+                                                    (.data node))
+                                            (* 10)
+                                            (+ 30)))})))
         drag (-> d3 
                  .-behavior 
                  .drag
                  (.on "drag" dragmove)
                  (.on "dragend" dragmoveend))]
-    (-> circle 
-        (.attr {:cx #(:x %) :cy #(:y %) :r #(:r %)})
+    (-> node 
+        (.attr {:transform #(str "translate(" (:x %) "," (:y %) ")")})
         (.call drag))))
 
-(update [{:id "a" :x 100 :y 100 :r 20}
-         {:id "b" :x 200 :y 200 :r 20}
-         {:id "c" :x 300 :y 300 :r 20}])
+(update [{:id "a" :name "Greenhouse Gases"   :x 100 :y 100 :r 20}
+         {:id "b" :name "Climate Change"     :x 200 :y 200 :r 20}
+         {:id "c" :name "Economic Growth"    :x 300 :y 300 :r 20}])
