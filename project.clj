@@ -1,7 +1,8 @@
 (defproject metrocene "0.0.1"
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [ring/ring-jetty-adapter "1.1.6"]
-                 [net.drib/strokes "0.5.0"]]
+                 [net.drib/strokes "0.5.0"]
+                 [org.clojure/math.numeric-tower "0.0.1"]]
   :plugins [[lein-cljsbuild "0.3.0"]
             [lein-ring "0.8.3"]]
   :uberjar-name "metrocene-standalone.jar"
