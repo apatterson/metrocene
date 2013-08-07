@@ -15,3 +15,7 @@ line {
 line:hover {
     stroke-opacity: 0.5;
 }
+
+#marker {
+    fill: green;
+}

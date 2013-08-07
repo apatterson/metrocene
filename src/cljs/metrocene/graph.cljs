@@ -5,14 +5,30 @@
 
 (def svg (-> d3 (.select "body") (.append "svg")))
 
-(defn update [{data :nodes links :links}]
-  (let [weight (fn [l r] (if (or (= l r) (> (:y l) (:y r))) 
+(-> svg
+    (.append "svg:marker")
+    (.attr "id" "marker")
+    (.attr "viewBox" "0 0 10 10")
+    (.attr "refX" 15)
+    (.attr "refY" 3)
+    (.attr "markerUnits"  "strokeWidth")
+    (.attr "markerWidth", 10)
+    (.attr "markerHeight", 10)
+    (.attr "orient", "auto")
+    (.append "svg:path")
+    (.attr "d", "M0,0L10,3L0,6"))
+
+(defn update [data]
+  (let [nodes (map (fn [n] {:id (.-id n) :x (.-x n) :y (.-y n)}) (.-nodes data))
+        links (map (fn [n] {:head 0 :tail 1}) (.-links data))
+        l (.log js/console nodes)
+        weight (fn [l r] (if (or (= l r) (> (:y l) (:y r))) 
                            0 
                            (if (> (:x l) (:x r)) 
                              1 
                              -1)))
         node (-> svg (.selectAll "g.node")
-                 (.data data :id)
+                 (.data nodes #(:id %))
                  (.enter)
                  (.append "g")
                  (.attr "class" "node" ))
@@ -57,7 +73,8 @@
         find-node (fn [coord posn] 
                     #(coord (nth data (posn %))))
         line (-> link
-                 (.append "line"))]
+                 (.append "line")
+                 (.attr "marker-end" "url(#marker)"))]
     (-> node 
         (.attr {:transform #(str "translate(" (:x %) "," (:y %) ")")})
         (.call drag))))
@@ -73,9 +90,4 @@
                 :y1 (find-node :y :tail)
                 :y2 (find-node :y :head)}))))
 
-(update {:nodes 
-         [{:id "a" :name "Greenhouse Gases"   :x 100 :y 100 :r 20}
-          {:id "b" :name "Climate Change"     :x 200 :y 200 :r 20}
-          {:id "c" :name "Economic Growth"    :x 300 :y 300 :r 20}]
-         :links
-         [{:id "x" :weight 1 :tail 1 :head 2}]})
+(-> d3 (.json "/json" #(update %1)))
