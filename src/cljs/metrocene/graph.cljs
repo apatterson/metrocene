@@ -18,10 +18,21 @@
     (.append "svg:path")
     (.attr "d", "M0,0L10,3L0,6"))
 
+(defn post [data] (.log js/console data))
+
+(defn update-links [nodes]
+  (let [find-node (fn [coord posn] 
+                    (fn [d i] (coord (nth nodes (posn d)))))]
+    (-> svg 
+        (.selectAll "g.link line")
+        (.attr {:x1 (find-node :x :tail)
+                :x2 (find-node :x :head)
+                :y1 (find-node :y :tail)
+                :y2 (find-node :y :head)}))))
+
 (defn update [data]
   (let [nodes (map (fn [n] {:id (.-id n) :x (.-x n) :y (.-y n)}) (.-nodes data))
         links (map (fn [n] {:head 0 :tail 1}) (.-links data))
-        l (.log js/console nodes)
         weight (fn [l r] (if (or (= l r) (> (:y l) (:y r))) 
                            0 
                            (if (> (:x l) (:x r)) 
@@ -49,15 +60,10 @@
                                                (-> d3 .-event .-x) ","
                                                (-> d3 .-event .-y) ")")}))
                    (update-links (-> svg (.selectAll "g.node") .data) links))
-        dragmoveend #(-> node
-                         (.select "circle")
-                         (.attr {:r (fn [d i] 
-                                      (-> (reduce (fn [acc c] 
-                                                    (+ acc (weight c d)))
-                                                  0
-                                                  (.data node))
-                                          (* 10)
-                                          (+ 30)))}))
+        dragmoveend #(post 
+                      {:nodes (-> svg
+                                  (.selectAll "g.node")
+                                  .data)})
         drag (-> d3 
                  .-behavior 
                  .drag
@@ -77,17 +83,7 @@
                  (.attr "marker-end" "url(#marker)"))]
     (-> node 
         (.attr {:transform #(str "translate(" (:x %) "," (:y %) ")")})
-        (.call drag))))
+        (.call drag))
+    (.data node)))
 
-(defn update-links [nodes links]
-  (let [find-node (fn [coord posn] 
-                    (fn [d i] (coord (nth nodes (posn d)))))
-        p (.log js/console nodes)]
-    (-> svg 
-        (.selectAll "g.link line")
-        (.attr {:x1 (find-node :x :tail)
-                :x2 (find-node :x :head)
-                :y1 (find-node :y :tail)
-                :y2 (find-node :y :head)}))))
-
-(-> d3 (.json "/json" #(update %1)))
+(-> d3 (.json "/json" #(update-links (update %1))))
