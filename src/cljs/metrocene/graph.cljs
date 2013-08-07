@@ -22,15 +22,17 @@
         text (-> node
                  (.append "text")
                  (.text #(:name %1)))
-        dragmove #(this-as this
-                           (-> d3 
-                               (.select this)
-                               (.data [{:id (fn [d i] (:id d))
-                                        :x (-> d3 .-event .-x)
-                                        :y (-> d3 .-event .-y)}])
-                               (.attr {:transform (str "translate(" 
-                                                       (-> d3 .-event .-x) ","
-                                                       (-> d3 .-event .-y) ")")})))
+        dragmove #(this-as 
+                   this
+                   (-> d3 
+                       (.select this)
+                       (.data [{:id (fn [d i] (:id d))
+                                :x (-> d3 .-event .-x)
+                                :y (-> d3 .-event .-y)}])
+                       (.attr {:transform (str "translate(" 
+                                               (-> d3 .-event .-x) ","
+                                               (-> d3 .-event .-y) ")")}))
+                   (update-links (-> svg (.selectAll "g.node") .data) links))
         dragmoveend #(-> node
                          (.select "circle")
                          (.attr {:r (fn [d i] 
@@ -50,32 +52,30 @@
                  (.data links :id)
                  (.enter)
                  (.append "g")
-                 (.attr "class" "link" ))
+                 (.attr "class" "link" )
+                 (.attr "id" #(:id %)))
+        find-node (fn [coord posn] 
+                    #(coord (nth data (posn %))))
         line (-> link
-                 (.append "line")
-                 (.attr {:x1 #(:x (.find 
-                                   js/_ 
-                                   data 
-                                   (fn [n] (= (:tail %) (:id n)))))
-                         :x2 #(:x (.find 
-                                   js/_ 
-                                   data 
-                                   (fn [n] (= (:head %) (:id n)))))
-                         :y1 #(:y (.find 
-                                   js/_ 
-                                   data 
-                                   (fn [n] (= (:tail %) (:id n)))))
-                         :y2 #(:y (.find 
-                                   js/_ 
-                                   data 
-                                   (fn [n] (= (:head %) (:id n)))))}))]
+                 (.append "line"))]
     (-> node 
         (.attr {:transform #(str "translate(" (:x %) "," (:y %) ")")})
         (.call drag))))
 
+(defn update-links [nodes links]
+  (let [find-node (fn [coord posn] 
+                    (fn [d i] (coord (nth nodes (posn d)))))
+        p (.log js/console nodes)]
+    (-> svg 
+        (.selectAll "g.link line")
+        (.attr {:x1 (find-node :x :tail)
+                :x2 (find-node :x :head)
+                :y1 (find-node :y :tail)
+                :y2 (find-node :y :head)}))))
+
 (update {:nodes 
-         [{:id :a :name "Greenhouse Gases"   :x 100 :y 100 :r 20}
-          {:id :b :name "Climate Change"     :x 200 :y 200 :r 20}
-          {:id :c :name "Economic Growth"    :x 300 :y 300 :r 20}]
+         [{:id "a" :name "Greenhouse Gases"   :x 100 :y 100 :r 20}
+          {:id "b" :name "Climate Change"     :x 200 :y 200 :r 20}
+          {:id "c" :name "Economic Growth"    :x 300 :y 300 :r 20}]
          :links
-         [{:id :x :weight 1 :tail :c :head :b}]})
+         [{:id "x" :weight 1 :tail 1 :head 2}]})
