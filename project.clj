@@ -2,6 +2,7 @@
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [org.clojure/data.json "0.2.0"]
                  [ring/ring-jetty-adapter "1.1.6"]
+                 [clatrix "0.3.0"]
                  [net.drib/strokes "0.5.0"]
                  [org.clojure/math.numeric-tower "0.0.1"]
                  [compojure "1.1.5"]]

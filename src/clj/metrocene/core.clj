@@ -5,7 +5,10 @@
             [ring.middleware.resource :as resources]
             [ring.middleware.content-type :as content-type]
             [ring.util.response :as response]
+            [clatrix.core :as clatrix]
             [clojure.java.io :as io]
+            [clojure.edn :as edn]
+            [clojure.string :as string]
             [compojure.route :as route]
             [compojure.handler :as handler]))
 
@@ -25,9 +28,16 @@
            :links
            [{:id "x" :weight 1 :tail 1 :head 2}]})})
 
-(defn post [params]
-  (do (println params)
-      {:status 200}))
+(defn post [{data :data}]
+  (let [nodes (:nodes (edn/read-string data))
+        links (:links (edn/read-string data))
+        p (println links)
+        dim (count nodes)
+        blank (clatrix/matrix (repeat dim (repeat dim 0)))
+        matrix (reduce #(clatrix/slice %1 (:tail %2) (:head %2)
+                                       (:weight %2)) blank links)]
+    (println matrix)
+    {:status 200}))
 
 (defroutes app
   (GET "/" [] (render-app))

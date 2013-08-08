@@ -35,7 +35,8 @@
 
 (defn update [data]
   (let [nodes (map (fn [n] {:id (.-id n) :x (.-x n) :y (.-y n)}) (.-nodes data))
-        links (map (fn [n] {:head 0 :tail 1}) (.-links data))
+        links (map (fn [n] {:head (.-head n) :tail (.-tail n) 
+                            :weight (.-weight n)}) (.-links data))
         weight (fn [l r] (if (or (= l r) (> (:y l) (:y r))) 
                            0 
                            (if (> (:x l) (:x r)) 
@@ -65,10 +66,15 @@
                                                  (-> d3 .-event .-y) ")")})))
                    (update-links (-> svg (.selectAll "g.node") .data)))
         dragmoveend #(post 
-                      (str "nodes="
-                           (-> svg
-                               (.selectAll "g.node")
-                               .data)))
+                      (str "data="
+                           {:nodes 
+                            (map identity 
+                                 (-> svg (.selectAll "g.node") 
+                                     .data))
+                            :links 
+                            (map identity 
+                                 (-> svg (.selectAll "g.link") 
+                                     .data))}))
         drag (-> d3 
                  .-behavior 
                  .drag
