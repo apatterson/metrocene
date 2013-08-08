@@ -18,7 +18,10 @@
     (.append "svg:path")
     (.attr "d", "M0,0L10,3L0,6"))
 
-(defn post [data] (.log js/console data))
+(defn post [data] 
+  (-> d3 (.xhr "/json")
+      (.header "Content-Type" "application/x-www-form-urlencoded")
+      (.post data)))
 
 (defn update-links [nodes]
   (let [find-node (fn [coord posn] 
@@ -51,19 +54,21 @@
                  (.text #(:name %1)))
         dragmove #(this-as 
                    this
-                   (-> d3 
-                       (.select this)
-                       (.data [{:id (fn [d i] (:id d))
-                                :x (-> d3 .-event .-x)
-                                :y (-> d3 .-event .-y)}])
-                       (.attr {:transform (str "translate(" 
-                                               (-> d3 .-event .-x) ","
-                                               (-> d3 .-event .-y) ")")}))
-                   (update-links (-> svg (.selectAll "g.node") .data) links))
+                   (let [old-data (-> d3 (.select this) .data)]
+                     (-> d3 
+                         (.select this)
+                         (.data [{:id (:id (first old-data))
+                                  :x (-> d3 .-event .-x)
+                                  :y (-> d3 .-event .-y)}])
+                         (.attr {:transform (str "translate(" 
+                                                 (-> d3 .-event .-x) ","
+                                                 (-> d3 .-event .-y) ")")})))
+                   (update-links (-> svg (.selectAll "g.node") .data)))
         dragmoveend #(post 
-                      {:nodes (-> svg
-                                  (.selectAll "g.node")
-                                  .data)})
+                      (str "nodes="
+                           (-> svg
+                               (.selectAll "g.node")
+                               .data)))
         drag (-> d3 
                  .-behavior 
                  .drag

@@ -6,7 +6,8 @@
             [ring.middleware.content-type :as content-type]
             [ring.util.response :as response]
             [clojure.java.io :as io]
-            [compojure.route :as route]))
+            [compojure.route :as route]
+            [compojure.handler :as handler]))
 
 (defn render-app []
   {:status 200
@@ -24,21 +25,16 @@
            :links
            [{:id "x" :weight 1 :tail 1 :head 2}]})})
 
-(defn handler [request]
-  (if (= "/" (:uri request))
-      (response/redirect "/help.html")
-      (render-app)))
+(defn post [params]
+  (do (println params)
+      {:status 200}))
 
 (defroutes app
   (GET "/" [] (render-app))
   (GET "/json" [] (json))
+  (POST "/json" {params :params} (post params))
   (route/resources "/" {:root "public"})
   (route/not-found "<h1>Page not found</h1>"))
 
-#_(def app 
-  (-> handler
-    (resources/wrap-resource "public")
-    content-type/wrap-content-type))
-
 (defn -main [port]
-  (jetty/run-jetty app {:port (Integer. port) :join? false}))
+  (jetty/run-jetty (handler/site app) {:port (Integer. port) :join? false}))
