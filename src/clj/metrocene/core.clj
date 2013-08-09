@@ -5,9 +5,10 @@
             [ring.middleware.resource :as resources]
             [ring.middleware.content-type :as content-type]
             [ring.util.response :as response]
-            [clatrix.core :as clatrix]
+            [clojure.core.matrix :as matrix]
             [clojure.java.io :as io]
             [clojure.edn :as edn]
+            [clojure.math.numeric-tower :as math]
             [clojure.string :as string]
             [compojure.route :as route]
             [compojure.handler :as handler]))
@@ -31,12 +32,15 @@
 (defn post [{data :data}]
   (let [nodes (:nodes (edn/read-string data))
         links (:links (edn/read-string data))
-        p (println links)
         dim (count nodes)
-        blank (clatrix/matrix (repeat dim (repeat dim 0)))
-        matrix (reduce #(clatrix/slice %1 (:tail %2) (:head %2)
-                                       (:weight %2)) blank links)]
-    (println matrix)
+        blank (matrix/matrix (repeat dim (repeat dim 0)))
+        causes (reduce #(matrix/mset %1 (:tail %2) (:head %2)
+                                     (:weight %2)) blank links)
+        states (matrix/matrix (repeat dim (repeat 1 1)))
+        squash (fn [out] (matrix/emap #(/ 1 (inc (math/expt Math/E (unchecked-negate %)))) out))
+        out (nth (iterate #(squash (matrix/add % (matrix/mul causes %))) states) 10)
+        minusahalf (matrix/sub out 0.5)]
+    (println minusahalf)
     {:status 200}))
 
 (defroutes app
