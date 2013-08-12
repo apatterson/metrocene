@@ -21,7 +21,8 @@
 (defn post [data] 
   (-> d3 (.xhr "/json")
       (.header "Content-Type" "application/x-www-form-urlencoded")
-      (.post data #(.log js/console %2))))
+      (.response #(.parse js/JSON (.-responseText %)))
+      (.post data #(update %2))))
 
 (defn update-links [nodes]
   (let [find-node (fn [coord posn] 
@@ -34,19 +35,27 @@
                 :y2 (find-node :y :head)}))))
 
 (defn update [data]
-  (let [nodes (map (fn [n] {:id (.-id n) :x (.-x n) :y (.-y n)}) (.-nodes data))
+  (let [l (.log js/console data)
+        nodes (map (fn [n] {:id (.-id n) :x (.-x n) :y (.-y n) 
+                            :colour (.-colour n) :name (.-name n)}) 
+                   (.-nodes data))
         links (map (fn [n] {:head (.-head n) :tail (.-tail n) 
-                            :weight (.-weight n) :id (.-id n)}) (.-links data))
+                            :weight (.-weight n) :id (.-id n)}) 
+                   (.-links data))
         weight (fn [l r] (if (or (= l r) (> (:y l) (:y r))) 
                            0 
                            (if (> (:x l) (:x r)) 
                              1 
                              -1)))
         node (-> svg (.selectAll "g.node")
-                 (.data nodes #(:id %))
-                 (.enter)
-                 (.append "g")
-                 (.attr "class" "node" ))
+                 (.data nodes #(:id %)))
+        node-enter (-> node
+                       .enter
+                       (.append "g")
+                       (.attr "class" "node")
+                       (.attr {:transform #(str "translate(" 
+                                                (:x %) "," 
+                                                (:y %) ")")}))
         circle (-> node
                    (.append "circle")
                    (.attr "r" 20))
@@ -92,9 +101,10 @@
         line (-> link
                  (.append "line")
                  (.attr "marker-end" "url(#marker)"))]
-    (-> node 
-        (.attr {:transform #(str "translate(" (:x %) "," (:y %) ")")})
+    (-> node
         (.call drag))
+    (-> circle
+        (.attr "class" #(:colour %)))
     (.data node)))
-
+  
 (-> d3 (.json "/json" #(update-links (update %1))))

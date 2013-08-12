@@ -23,9 +23,12 @@
    :headers {"Content-Type" "application/json"}
    :body (json/write-str
           {:nodes 
-           [{:id "a" :name "Greenhouse Gases"   :x 100 :y 100 :r 20}
-            {:id "b" :name "Climate Change"     :x 200 :y 200 :r 20}
-            {:id "c" :name "Economic Growth"    :x 300 :y 300 :r 20}]
+           [{:id "a" :name "Greenhouse Gases"   :x 100 :y 100 :r 20 
+             :colour :pos}
+            {:id "b" :name "Climate Change"     :x 200 :y 200 :r 20 
+             :colour :pos}
+            {:id "c" :name "Economic Growth"    :x 300 :y 300 :r 20 
+             :colour :neg}]
            :links
            [{:id "x" :weight 1 :tail 1 :head 2}
             {:id "y" :weight -2 :tail 2 :head 0}]})})
@@ -43,14 +46,16 @@
                               (inc (math/expt 
                                     Math/E 
                                     (unchecked-negate %)))) out))
-        out (nth (iterate #(squash (matrix/add % (matrix/mul causes %))) states) 10)
+        out (nth (iterate #(squash (matrix/add % (matrix/mul causes %))) 
+                          states) 10)
         minusahalf (matrix/sub out 0.5)
-        newnodes (map #(assoc (nth nodes %) :value (first (get minusahalf %)))
+        col-class #(if (< % 0) :neg :pos)
+        newnodes (map #(assoc (nth nodes %) 
+                         :colour (col-class (first (get minusahalf %))))
                       (range (count nodes)))]
-    (println newnodes)
     {:status 200
      :header {"Content-Type" "application/json"}
-     :body (json/write-str newnodes)}))
+     :body (json/write-str {:nodes newnodes :links links})}))
 
 (defroutes app
   (GET "/" [] (render-app))

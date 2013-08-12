@@ -19,3 +19,9 @@ line:hover {
 #marker {
     fill: green;
 }
+.pos {
+    fill:green;
+}
+.neg {
+    fill:red;
+}
