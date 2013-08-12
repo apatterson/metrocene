@@ -19,9 +19,15 @@ line:hover {
 #marker {
     fill: green;
 }
-.pos {
+.pos circle{
     fill:green;
 }
-.neg {
+.neg circle{
     fill:red;
+}
+.pos line{
+    stroke:green;
+}
+.neg line{
+    stroke:red;
 }

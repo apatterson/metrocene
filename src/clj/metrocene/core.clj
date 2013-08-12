@@ -26,12 +26,12 @@
            [{:id "a" :name "Greenhouse Gases"   :x 100 :y 100 :r 20 
              :colour :pos}
             {:id "b" :name "Climate Change"     :x 200 :y 200 :r 20 
-             :colour :pos}
+             :colour :neg}
             {:id "c" :name "Economic Growth"    :x 300 :y 300 :r 20 
              :colour :neg}]
            :links
-           [{:id "x" :weight 1 :tail 1 :head 2}
-            {:id "y" :weight -2 :tail 2 :head 0}]})})
+           [{:id "x" :weight 1 :tail 1 :head 2 :colour :neg}
+            {:id "y" :weight -2 :tail 2 :head 0 :colour :neg}]})})
 
 (defn post [{data :data}]
   (let [nodes (:nodes (edn/read-string data))
@@ -55,7 +55,11 @@
                       (range (count nodes)))]
     {:status 200
      :header {"Content-Type" "application/json"}
-     :body (json/write-str {:nodes newnodes :links links})}))
+     :body (json/write-str {:nodes newnodes 
+                            :links (map #(assoc % 
+                                           :colour (if (< (:weight %) 0)
+                                                     :neg :pos)) 
+                                        links)})}))
 
 (defroutes app
   (GET "/" [] (render-app))
