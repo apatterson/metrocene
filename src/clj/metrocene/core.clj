@@ -27,7 +27,8 @@
             {:id "b" :name "Climate Change"     :x 200 :y 200 :r 20}
             {:id "c" :name "Economic Growth"    :x 300 :y 300 :r 20}]
            :links
-           [{:id "x" :weight 1 :tail 1 :head 2}]})})
+           [{:id "x" :weight 1 :tail 1 :head 2}
+            {:id "y" :weight -2 :tail 2 :head 0}]})})
 
 (defn post [{data :data}]
   (let [nodes (:nodes (edn/read-string data))
@@ -37,11 +38,19 @@
         causes (reduce #(matrix/mset %1 (:tail %2) (:head %2)
                                      (:weight %2)) blank links)
         states (matrix/matrix (repeat dim (repeat 1 1)))
-        squash (fn [out] (matrix/emap #(/ 1 (inc (math/expt Math/E (unchecked-negate %)))) out))
+        squash (fn [out] (matrix/emap 
+                          #(/ 1 
+                              (inc (math/expt 
+                                    Math/E 
+                                    (unchecked-negate %)))) out))
         out (nth (iterate #(squash (matrix/add % (matrix/mul causes %))) states) 10)
-        minusahalf (matrix/sub out 0.5)]
-    (println minusahalf)
-    {:status 200}))
+        minusahalf (matrix/sub out 0.5)
+        newnodes (map #(assoc (nth nodes %) :value (first (get minusahalf %)))
+                      (range (count nodes)))]
+    (println newnodes)
+    {:status 200
+     :header {"Content-Type" "application/json"}
+     :body (json/write-str newnodes)}))
 
 (defroutes app
   (GET "/" [] (render-app))

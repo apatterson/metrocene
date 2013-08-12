@@ -21,7 +21,7 @@
 (defn post [data] 
   (-> d3 (.xhr "/json")
       (.header "Content-Type" "application/x-www-form-urlencoded")
-      (.post data)))
+      (.post data #(.log js/console %2))))
 
 (defn update-links [nodes]
   (let [find-node (fn [coord posn] 
@@ -36,7 +36,7 @@
 (defn update [data]
   (let [nodes (map (fn [n] {:id (.-id n) :x (.-x n) :y (.-y n)}) (.-nodes data))
         links (map (fn [n] {:head (.-head n) :tail (.-tail n) 
-                            :weight (.-weight n)}) (.-links data))
+                            :weight (.-weight n) :id (.-id n)}) (.-links data))
         weight (fn [l r] (if (or (= l r) (> (:y l) (:y r))) 
                            0 
                            (if (> (:x l) (:x r)) 
@@ -82,7 +82,7 @@
                  (.on "dragend" dragmoveend))
         
         link (-> svg (.selectAll "g.link")
-                 (.data links :id)
+                 (.data links #(:id %))
                  (.enter)
                  (.append "g")
                  (.attr "class" "link" )
