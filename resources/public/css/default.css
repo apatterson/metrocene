@@ -17,7 +17,12 @@ line:hover {
 }
 
 #marker {
-    fill: green;
+    fill:green;
+    stroke:green;
+}
+#neg-marker {
+    fill:red;
+    stroke:red;
 }
 .pos circle{
     fill:green;
@@ -26,8 +31,10 @@ line:hover {
     fill:red;
 }
 .pos line{
+    marker-end:url(#marker);
     stroke:green;
 }
-.neg line{
+.neg line {
+    marker-end:url(#neg-marker);
     stroke:red;
 }

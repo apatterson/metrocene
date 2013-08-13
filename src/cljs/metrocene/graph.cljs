@@ -5,18 +5,22 @@
 
 (def svg (-> d3 (.select "body") (.append "svg")))
 
-(-> svg
-    (.append "svg:marker")
-    (.attr "id" "marker")
-    (.attr "viewBox" "0 0 10 10")
-    (.attr "refX" 15)
-    (.attr "refY" 3)
-    (.attr "markerUnits"  "strokeWidth")
-    (.attr "markerWidth", 10)
-    (.attr "markerHeight", 10)
-    (.attr "orient", "auto")
-    (.append "svg:path")
-    (.attr "d", "M0,0L10,3L0,6"))
+(defn make-marker [parent id]
+  (-> parent
+      (.append "svg:marker")
+      (.attr "id" id)
+      (.attr "viewBox" "0 0 10 10")
+      (.attr "refX" 15)
+      (.attr "refY" 3)
+      (.attr "markerUnits"  "strokeWidth")
+      (.attr "markerWidth", 10)
+      (.attr "markerHeight", 10)
+      (.attr "orient", "auto")
+      (.append "svg:path")
+      (.attr "d", "M0,0L10,3L0,6")))
+
+(make-marker svg "marker")
+(make-marker svg "neg-marker")
 
 (defn post [data] 
   (-> d3 (.xhr "/json")
