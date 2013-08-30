@@ -80,6 +80,17 @@
                                                  (-> d3 .-event .-x) ","
                                                  (-> d3 .-event .-y) ")")})))
                    (update-links (-> svg (.selectAll "g.node") .data)))
+        drag-vote-move #(this-as 
+                         this
+                         (let [old-data (-> d3 (.select this) .data)]
+                           (-> d3 
+                               (.select this)
+                               (.data [{:id (:id (first old-data))
+                                        :x (-> d3 .-event .-x)
+                                        :y (-> d3 .-event .-y)}])
+                               (.attr {:transform (str "translate(" 
+                                                       (-> d3 .-event .-x) ","
+                                                       (-> d3 .-event .-y) ")")}))))
         dragmoveend #(post 
                       (str "data="
                            {:nodes 
@@ -95,9 +106,26 @@
                  .drag
                  (.on "drag" dragmove)
                  (.on "dragend" dragmoveend))
+        dragvote (-> d3 
+                     .-behavior 
+                     .drag
+                     (.on "drag" drag-vote-move))
         find-node (fn [coord posn]
                     (fn [d i] (coord (nth nodes (posn d)))))
-        over #(this-as this (.log js/console (-> d3 .-event .-target)))]
+        over #(-> node 
+                  (.each 
+                   (fn [d i] (let [dx  (- (:x d) (-> d3 .-event .-x))
+                                   dy  (- (:y d) (-> d3 .-event .-y))
+                                   close (< (.sqrt js/Math
+                                                   (+
+                                                    (.pow js/Math dx 2)
+                                                    (.pow js/Math dy 2)))
+                                            20)]
+                               (when 1 (.log js/console 
+                                             (-> d3 (.touches
+                                                     (.-body js/document))
+                                                 first
+                                                 first)))))))]
     (-> svg (.selectAll "use")
         (.data [{:id "plus" :x 20 :y 200}])
         .enter
@@ -105,8 +133,7 @@
         (.attr "xlink:href" "#plus")
         (.attr "width" 30)
         (.attr "height" 30)
-        (.call drag))
-
+        (.call dragvote))
     (-> node 
         (.attr "class" #(str "node " (:colour %))))
     (-> new-node 
@@ -115,8 +142,6 @@
         (.attr {:transform #(str "translate(" 
                                  (:x %) "," 
                                  (:y %) ")")})
-        (.on "touchmove" over)
-        (.on "mousemove" over)
         (.append "circle")
         (.attr "r" 20))
     (-> new-node 
