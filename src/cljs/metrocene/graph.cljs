@@ -36,7 +36,7 @@
   (-> d3 (.xhr "/json")
       (.header "Content-Type" "application/x-www-form-urlencoded")
       (.response #(.parse js/JSON (.-responseText %)))
-      (.post data #(update %2))))
+      (.post data #(update (js->clj %2 :keywordize-keys true)))))
 
 (defn update-links [nodes]
   (let [find-node (fn [coord posn]
@@ -48,14 +48,8 @@
                 :y1 (find-node :y :tail)
                 :y2 (find-node :y :head)}))))
 
-(defn update [data]
-  (let [nodes (map (fn [n] {:id (.-id n) :x (.-x n) :y (.-y n) 
-                            :colour (.-colour n) :name (.-name n)}) 
-                   (.-nodes data))
-        links (map (fn [n] {:head (.-head n) :tail (.-tail n) 
-                            :weight (.-weight n) :id (.-id n)
-                            :colour (.-colour n) }) 
-                   (.-links data))
+(defn update [{nodes :nodes links :links}]
+  (let [p (.log js/console nodes)
         weight (fn [l r] (if (or (= l r) (> (:y l) (:y r))) 
                            0 
                            (if (> (:x l) (:x r)) 
@@ -68,29 +62,35 @@
                      (.append "g"))
         link (-> svg (.selectAll "g.link")
                  (.data links #(:id %)))
-        dragmove #(this-as 
-                   this
-                   (let [old-data (-> d3 (.select this) .data)]
+        drag-move #(let [old-data (-> d3 (.select %) .data)]
                      (-> d3 
-                         (.select this)
+                         (.select %)
                          (.data [{:id (:id (first old-data))
                                   :x (-> d3 .-event .-x)
-                                  :y (-> d3 .-event .-y)}])
+                                  :y (-> d3 .-event .-y)
+                                  :name (:name (first old-data))}])
                          (.attr {:transform (str "translate(" 
                                                  (-> d3 .-event .-x) ","
                                                  (-> d3 .-event .-y) ")")})))
+        dragmove #(this-as 
+                   this
+                   (drag-move this)
                    (update-links (-> svg (.selectAll "g.node") .data)))
+        over #(-> node 
+                  (.each 
+                   (fn [d i] (let [dx  (- (:x d) (-> d3 .-event .-x))
+                                   dy  (- (:y d) (-> d3 .-event .-y))
+                                   close (< (.sqrt js/Math
+                                                   (+
+                                                    (.pow js/Math dx 2)
+                                                    (.pow js/Math dy 2)))
+                                            20)]
+                               (when close (.log js/console (:name d)))))))
         drag-vote-move #(this-as 
                          this
-                         (let [old-data (-> d3 (.select this) .data)]
-                           (-> d3 
-                               (.select this)
-                               (.data [{:id (:id (first old-data))
-                                        :x (-> d3 .-event .-x)
-                                        :y (-> d3 .-event .-y)}])
-                               (.attr {:transform (str "translate(" 
-                                                       (-> d3 .-event .-x) ","
-                                                       (-> d3 .-event .-y) ")")}))))
+                         (drag-move this)
+                         (over)
+                         (update-links (-> svg (.selectAll "g.node") .data)))
         dragmoveend #(post 
                       (str "data="
                            {:nodes 
@@ -111,21 +111,7 @@
                      .drag
                      (.on "drag" drag-vote-move))
         find-node (fn [coord posn]
-                    (fn [d i] (coord (nth nodes (posn d)))))
-        over #(-> node 
-                  (.each 
-                   (fn [d i] (let [dx  (- (:x d) (-> d3 .-event .-x))
-                                   dy  (- (:y d) (-> d3 .-event .-y))
-                                   close (< (.sqrt js/Math
-                                                   (+
-                                                    (.pow js/Math dx 2)
-                                                    (.pow js/Math dy 2)))
-                                            20)]
-                               (when 1 (.log js/console 
-                                             (-> d3 (.touches
-                                                     (.-body js/document))
-                                                 first
-                                                 first)))))))]
+                    (fn [d i] (coord (nth nodes (posn d)))))]
     (-> svg (.selectAll "use")
         (.data [{:id "plus" :x 20 :y 200}])
         .enter
@@ -159,4 +145,4 @@
                 :y1 (find-node :y :tail)
                 :y2 (find-node :y :head)}))))
 
-(-> d3 (.json "/json" #(update %1)))
+(-> d3 (.json "/json" #(update (js->clj %1 :keywordize-keys true))))
