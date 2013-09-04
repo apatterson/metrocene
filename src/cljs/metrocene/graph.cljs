@@ -67,10 +67,9 @@
         drag-move #(let [old-data (-> d3 (.select %) .data)]
                      (-> d3 
                          (.select %)
-                         (.data [{:id (:id (first old-data))
-                                  :x (-> d3 .-event .-x)
-                                  :y (-> d3 .-event .-y)
-                                  :name (:name (first old-data))}])
+                         (.data [(merge (first old-data)
+                                  {:x (-> d3 .-event .-x)
+                                   :y (-> d3 .-event .-y)})])
                          (.attr {:transform (str "translate(" 
                                                  (-> d3 .-event .-x) ","
                                                  (-> d3 .-event .-y) ")")})))
@@ -89,14 +88,16 @@
                                                       (.pow js/Math dy 2)))
                                               20)]
                                  (when close
-                                   (when (:name d)
-                                     (-> d3 (.select %) 
-                                         (.data [{:name (:name d)
-                                                  :id (:id (first old-data))}])))
                                    (when (not= 
-                                          (:name (first old-data)) 
+                                          (:new (first old-data)) 
                                           (:name d))
-                                     (.log js/console (:name d)))))))))
+                                     (do
+                                       (-> d3 (.select %) 
+                                           (.data [(merge (first old-data)
+                                                          {:old (:new (first old-data)) 
+                                                           :new (:name d)})]))
+                                       (.log js/console (:new (first old-data)))
+                                       (.log js/console (:name d))))))))))
         drag-vote-move #(this-as 
                          this
                          (drag-move this)
@@ -123,7 +124,7 @@
         find-node (fn [coord posn]
                     (fn [d i] (coord (nth nodes (posn d)))))]
     (-> svg (.selectAll "use")
-        (.data [{:id "plus" :x 20 :y 200}])
+        (.data [{:id "plus" :old nil :new nil}])
         .enter
         (.append "use")
         (.attr "xlink:href" "#plus")
