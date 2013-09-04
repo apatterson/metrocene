@@ -3,7 +3,10 @@
 
 (strokes/bootstrap)
 
-(def svg (-> d3 (.select "body") (.append "svg")))
+(def svg (-> d3 
+             (.select "body") 
+             (.append "svg")
+             (.attr {:width 900 :height 900})))
 
 (defn make-marker [parent id]
   (-> parent
@@ -49,8 +52,7 @@
                 :y2 (find-node :y :head)}))))
 
 (defn update [{nodes :nodes links :links}]
-  (let [p (.log js/console nodes)
-        weight (fn [l r] (if (or (= l r) (> (:y l) (:y r))) 
+  (let [weight (fn [l r] (if (or (= l r) (> (:y l) (:y r))) 
                            0 
                            (if (> (:x l) (:x r)) 
                              1 
@@ -75,22 +77,30 @@
         dragmove #(this-as 
                    this
                    (drag-move this)
-                   (update-links (-> svg (.selectAll "g.node") .data)))
-        over #(-> node 
-                  (.each 
-                   (fn [d i] (let [dx  (- (:x d) (-> d3 .-event .-x))
-                                   dy  (- (:y d) (-> d3 .-event .-y))
-                                   close (< (.sqrt js/Math
-                                                   (+
-                                                    (.pow js/Math dx 2)
-                                                    (.pow js/Math dy 2)))
-                                            20)]
-                               (when close (.log js/console (:name d)))))))
+                   (update-links (-> d3 (.selectAll "g.node") .data)))
+        over #(let [old-data (-> d3 (.select %) .data)]
+                (-> node 
+                    (.each 
+                     (fn [d i] (let [dx  (- (:x d) (-> d3 .-event .-x))
+                                     dy  (- (:y d) (-> d3 .-event .-y))
+                                     close (< (.sqrt js/Math
+                                                     (+
+                                                      (.pow js/Math dx 2)
+                                                      (.pow js/Math dy 2)))
+                                              20)]
+                                 (when close
+                                   (when (:name d)
+                                     (-> d3 (.select %) 
+                                         (.data [{:name (:name d)
+                                                  :id (:id (first old-data))}])))
+                                   (when (not= 
+                                          (:name (first old-data)) 
+                                          (:name d))
+                                     (.log js/console (:name d)))))))))
         drag-vote-move #(this-as 
                          this
                          (drag-move this)
-                         (over)
-                         (update-links (-> svg (.selectAll "g.node") .data)))
+                         (over this))
         dragmoveend #(post 
                       (str "data="
                            {:nodes 
