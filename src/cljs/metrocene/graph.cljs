@@ -64,20 +64,21 @@
                      (.append "g"))
         link (-> svg (.selectAll "g.link")
                  (.data links #(:id %)))
-        drag-move #(let [old-data (-> d3 (.select %) .data)]
-                     (-> d3 
-                         (.select %)
-                         (.data [(merge (first old-data)
-                                  {:x (-> d3 .-event .-x)
-                                   :y (-> d3 .-event .-y)})])
-                         (.attr {:transform (str "translate(" 
-                                                 (-> d3 .-event .-x) ","
-                                                 (-> d3 .-event .-y) ")")})))
+        drag-move #(let [old-data (-> d3 (.select %) .data first)]
+                     (when-not (:new old-data)
+                       (-> d3 
+                           (.select %)
+                           (.data [(merge old-data
+                                          {:x (-> d3 .-event .-x)
+                                           :y (-> d3 .-event .-y)})])
+                           (.attr {:transform (str "translate(" 
+                                                   (-> d3 .-event .-x) ","
+                                                   (-> d3 .-event .-y) ")")}))))
         dragmove #(this-as 
                    this
                    (drag-move this)
                    (update-links (-> d3 (.selectAll "g.node") .data)))
-        over #(let [old-data (-> d3 (.select %) .data)]
+        over #(let [old-data (-> d3 (.select %) .data first)]
                 (-> node 
                     (.each 
                      (fn [d i] (let [dx  (- (:x d) (-> d3 .-event .-x))
@@ -87,17 +88,23 @@
                                                       (.pow js/Math dx 2)
                                                       (.pow js/Math dy 2)))
                                               20)]
-                                 (when close
+                                 (when (and close (not (:done old-data)))
                                    (when (not= 
-                                          (:new (first old-data)) 
-                                          (:name d))
+                                          (:new old-data) 
+                                          (:id d))
                                      (do
                                        (-> d3 (.select %) 
-                                           (.data [(merge (first old-data)
-                                                          {:old (:new (first old-data)) 
-                                                           :new (:name d)})]))
-                                       (.log js/console (:new (first old-data)))
-                                       (.log js/console (:name d))))))))))
+                                           (.data 
+                                            [(merge old-data
+                                                    {:new (when-not 
+                                                              (:new old-data)
+                                                            (:id d))
+                                                     :done (:new old-data)})])
+                                           (.attr {:transform 
+                                                   "translate(10,20)"}))
+                                       (if (:new old-data)
+                                         (.log js/console "2 " (:name d))
+                                         (.log js/console (-> d3 (.select %) .data first :new)))))))))))
         drag-vote-move #(this-as 
                          this
                          (drag-move this)
@@ -124,7 +131,7 @@
         find-node (fn [coord posn]
                     (fn [d i] (coord (nth nodes (posn d)))))]
     (-> svg (.selectAll "use")
-        (.data [{:id "plus" :old nil :new nil}])
+        (.data [{:id "plus" :done False :new nil}])
         .enter
         (.append "use")
         (.attr "xlink:href" "#plus")
