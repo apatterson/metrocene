@@ -41,23 +41,12 @@
       (.response #(.parse js/JSON (.-responseText %)))
       (.post data #(update (js->clj %2 :keywordize-keys true)))))
 
-(defn update-links [nodes]
-  (let [find-node (fn [coord posn]
-                    (fn [d i] (coord (nth nodes (posn d)))))]
-    (-> svg 
-        (.selectAll "g.link line")
-        (.attr {:x1 (find-node :x :tail)
-                :x2 (find-node :x :head)
-                :y1 (find-node :y :tail)
-                :y2 (find-node :y :head)}))))
-
 (defn update [{nodes :nodes links :links}]
   (let [weight (fn [l r] (if (or (= l r) (> (:y l) (:y r))) 
                            0 
                            (if (> (:x l) (:x r)) 
                              1 
                              -1)))
-        p (.log js/console links)
         node (-> svg (.selectAll "g.node")
                  (.data nodes #(:id %)))
         new-node (-> node 
@@ -65,6 +54,12 @@
                      (.append "g"))
         link (-> svg (.selectAll "g.link")
                  (.data links #(:id %)))
+        new-link (-> link 
+                     .enter 
+                     (.append "g")                 
+                     (.attr "class" #(str "link " (:colour %))))
+        line (-> new-link
+                 (.append "line"))
         drag-move #(let [old-data (-> d3 (.select %) .data first)]
                      (when-not (or (:new old-data) (:done old-data))
                        (-> d3 
@@ -78,7 +73,8 @@
         dragmove #(this-as 
                    this
                    (drag-move this)
-                   (update-links (-> d3 (.selectAll "g.node") .data)))
+                   (update {:nodes (-> d3 (.selectAll "g.node") .data)
+                            :links links}))
         over #(let [old-data (-> d3 (.select %) .data first)]
                 (-> node 
                     (.each 
@@ -90,9 +86,7 @@
                                                       (.pow js/Math dy 2)))
                                               20)]
                                  (when (and close (not (:done old-data)))
-                                   (when (not= 
-                                          (:new old-data) 
-                                          i)
+                                   (when (not= (:new old-data) i)
                                      (do
                                        (-> d3 (.select %) 
                                            (.data 
@@ -106,14 +100,15 @@
                                        (if (:new old-data)
                                          #_(.log js/console "2 " (:id d) (:new old-data))
                                          (update 
-                                          {:nodes nodes 
+                                          {:nodes (-> d3 (.selectAll "g.node")
+                                                      .data) 
                                            :links (conj links 
                                                    {:id (str (:id d) 
                                                              (:new old-data))
                                                     :tail (:new old-data)
                                                     :head i
                                                     :weight 1
-                                                    :colour :pos})})
+                                                    :colour "pos"})})
                                          (.log js/console (-> d3 (.select %) .data first :new)))))))))))
         drag-vote-move #(this-as 
                          this
@@ -161,13 +156,12 @@
     (-> new-node 
         (.append "text")
         (.text #(:name %)))
-    (-> link
-        (.attr "class" #(str "link " (:colour %))))
-    (-> link
-        .enter
-        (.append "g")
-        (.attr "class" "link")
-        (.append "line")
+    (-> line
+        (.attr {:x1 (find-node :x :tail)
+                :x2 (find-node :x :head)
+                :y1 (find-node :y :tail)
+                :y2 (find-node :y :head)}))
+    (-> svg (.selectAll ".link line")
         (.attr {:x1 (find-node :x :tail)
                 :x2 (find-node :x :head)
                 :y1 (find-node :y :tail)
