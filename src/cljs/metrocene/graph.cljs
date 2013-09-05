@@ -57,6 +57,7 @@
                            (if (> (:x l) (:x r)) 
                              1 
                              -1)))
+        p (.log js/console links)
         node (-> svg (.selectAll "g.node")
                  (.data nodes #(:id %)))
         new-node (-> node 
@@ -65,7 +66,7 @@
         link (-> svg (.selectAll "g.link")
                  (.data links #(:id %)))
         drag-move #(let [old-data (-> d3 (.select %) .data first)]
-                     (when-not (:new old-data)
+                     (when-not (or (:new old-data) (:done old-data))
                        (-> d3 
                            (.select %)
                            (.data [(merge old-data
@@ -91,19 +92,28 @@
                                  (when (and close (not (:done old-data)))
                                    (when (not= 
                                           (:new old-data) 
-                                          (:id d))
+                                          i)
                                      (do
                                        (-> d3 (.select %) 
                                            (.data 
                                             [(merge old-data
                                                     {:new (when-not 
                                                               (:new old-data)
-                                                            (:id d))
+                                                            i)
                                                      :done (:new old-data)})])
                                            (.attr {:transform 
                                                    "translate(10,20)"}))
                                        (if (:new old-data)
-                                         (.log js/console "2 " (:name d))
+                                         #_(.log js/console "2 " (:id d) (:new old-data))
+                                         (update 
+                                          {:nodes nodes 
+                                           :links (conj links 
+                                                   {:id (str (:id d) 
+                                                             (:new old-data))
+                                                    :tail (:new old-data)
+                                                    :head i
+                                                    :weight 1
+                                                    :colour :pos})})
                                          (.log js/console (-> d3 (.select %) .data first :new)))))))))))
         drag-vote-move #(this-as 
                          this
