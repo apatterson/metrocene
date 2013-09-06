@@ -1,9 +1,9 @@
 (ns metrocene.graph
   (:require [strokes :refer [d3]]
-            [cljs.core.async :as async :refer [chan]]))
+            [cljs.core.async :as async :refer [chan <! >!]])
+  (:require-macros [cljs.core.async.macros :refer [go]]))
 
 (strokes/bootstrap)
-(chan)
 
 (def svg (-> d3 
              (.select "body") 
@@ -62,6 +62,7 @@
                      (.attr "class" #(str "link " (:colour %))))
         line (-> new-link
                  (.append "line"))
+        c (chan)
         drag-move #(let [old-data (-> d3 (.select %) .data first)]
                      (when-not (or (:new old-data) (:done old-data))
                        (-> d3 
@@ -77,45 +78,49 @@
                    (drag-move this)
                    (update {:nodes (-> d3 (.selectAll "g.node") .data)
                             :links links}))
-        over #(let [old-data (-> d3 (.select %) .data first)]
-                (-> node 
-                    (.each 
-                     (fn [d i] (let [dx  (- (:x d) (-> d3 .-event .-x))
-                                     dy  (- (:y d) (-> d3 .-event .-y))
-                                     close (< (.sqrt js/Math
-                                                     (+
-                                                      (.pow js/Math dx 2)
-                                                      (.pow js/Math dy 2)))
-                                              20)]
-                                 (when (and close (not (:done old-data)))
-                                   (when (not= (:new old-data) i)
-                                     (do
-                                       (-> d3 (.select %) 
-                                           (.data 
-                                            [(merge old-data
-                                                    {:new (when-not 
-                                                              (:new old-data)
-                                                            i)
-                                                     :done (:new old-data)})])
-                                           (.attr {:transform 
-                                                   "translate(10,20)"}))
-                                       (if (:new old-data)
-                                         #_(.log js/console "2 " (:id d) (:new old-data))
-                                         (update 
-                                          {:nodes (-> d3 (.selectAll "g.node")
-                                                      .data) 
-                                           :links (conj links 
-                                                   {:id (str (:id d) 
-                                                             (:new old-data))
-                                                    :tail (:new old-data)
-                                                    :head i
-                                                    :weight 1
+        over (fn 
+               [[e this]]
+               (let [old-data (-> d3 (.select this) .data first)]
+                 (-> node 
+                     (.each 
+                      (fn [d i] (let [dx  (- (:x d) (.-x e))
+                                      dy  (- (:y d) (.-y e))
+                                      close (< (.sqrt js/Math
+                                                      (+
+                                                       (.pow js/Math dx 2)
+                                                       (.pow js/Math dy 2)))
+                                               20)]
+                                  (when (and close (not (:done old-data)))
+                                    (when (not= (:new old-data) i)
+                                      (do
+                                        (-> d3 (.select this) 
+                                            (.data 
+                                             [(merge old-data
+                                                     {:new (when-not 
+                                                               (:new old-data)
+                                                             i)
+                                                      :done (:new old-data)})])
+                                            (.attr {:transform 
+                                                    "translate(10,20)"}))
+                                        (if (:new old-data)
+                                          #_(.log js/console "2 " (:id d) (:new old-data))
+                                          (update 
+                                           {:nodes (-> d3 (.selectAll "g.node")
+                                                       .data) 
+                                            :links (conj links 
+                                                         {:id (str (:id d) 
+                                                                   (:new old-data))
+                                                          :tail (:new old-data)
+                                                          :head i
+                                                          :weight 1
                                                     :colour "pos"})})
-                                         (.log js/console (-> d3 (.select %) .data first :new)))))))))))
+                                          (.log js/console (-> d3 (.select this) 
+                                                               .data first :new))))))))))))
         drag-vote-move #(this-as 
                          this
-                         (drag-move this)
-                         (over this))
+                         (let [e (-> d3 .-event)]
+                           (drag-move this)
+                           (go (>! c [e this]))))
         dragmoveend #(post 
                       (str "data="
                            {:nodes 
@@ -167,6 +172,8 @@
         (.attr {:x1 (find-node :x :tail)
                 :x2 (find-node :x :head)
                 :y1 (find-node :y :tail)
-                :y2 (find-node :y :head)}))))
+                :y2 (find-node :y :head)}))
+    (go (while true
+          (over (<! c))))))
 
 (-> d3 (.json "/json" #(update (js->clj %1 :keywordize-keys true))))
