@@ -1,4 +1,4 @@
-(defproject metrocene "0.0.1"
+(defproject metrocene "0.0.1-SNAPSHOT"
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [org.clojure/clojurescript "0.0-1859"]
                  [org.clojure/core.async "0.1.0-SNAPSHOT"]
