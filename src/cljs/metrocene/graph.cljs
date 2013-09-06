@@ -1,7 +1,9 @@
 (ns metrocene.graph
-  (:require [strokes :refer [d3]]))
+  (:require [strokes :refer [d3]]
+            [cljs.core.async :as async :refer [chan]]))
 
 (strokes/bootstrap)
+(chan)
 
 (def svg (-> d3 
              (.select "body") 
