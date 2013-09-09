@@ -38,3 +38,12 @@ line:hover {
     marker-end:url(#neg-marker);
     stroke:red;
 }
+svg.waiting {
+    cursor: crosshair;
+}
+svg.connecting {
+    cursor: hand;
+}
+svg.connected {
+    cursor: default;
+}

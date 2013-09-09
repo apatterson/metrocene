@@ -43,6 +43,9 @@
       (.response #(.parse js/JSON (.-responseText %)))
       (.post data #(update (js->clj %2 :keywordize-keys true)))))
 
+(def over-chan (chan))
+(def ch (chan))
+
 (defn update [{nodes :nodes links :links}]
   (let [weight (fn [l r] (if (or (= l r) (> (:y l) (:y r))) 
                            0 
@@ -62,7 +65,6 @@
                      (.attr "class" #(str "link " (:colour %))))
         line (-> new-link
                  (.append "line"))
-        c (chan)
         drag-move #(let [old-data (-> d3 (.select %) .data first)]
                      (when-not (or (:new old-data) (:done old-data))
                        (-> d3 
@@ -93,6 +95,7 @@
                                   (when (and close (not (:done old-data)))
                                     (when (not= (:new old-data) i)
                                       (do
+                                        (go (>! over-chan i))
                                         (-> d3 (.select this) 
                                             (.data 
                                              [(merge old-data
@@ -103,7 +106,6 @@
                                             (.attr {:transform 
                                                     "translate(10,20)"}))
                                         (if (:new old-data)
-                                          #_(.log js/console "2 " (:id d) (:new old-data))
                                           (update 
                                            {:nodes (-> d3 (.selectAll "g.node")
                                                        .data) 
@@ -113,14 +115,16 @@
                                                           :tail (:new old-data)
                                                           :head i
                                                           :weight 1
-                                                    :colour "pos"})})
-                                          (.log js/console (-> d3 (.select this) 
-                                                               .data first :new))))))))))))
+                                                          :colour "pos"})})
+                                          nil #_(.log js/console (-> d3 (.select this) 
+                                                                     .data first :new))))))))))
+                 (-> d3 (.select this) 
+                     .data first :done)))
         drag-vote-move #(this-as 
                          this
                          (let [e (-> d3 .-event)]
                            (drag-move this)
-                           (go (>! c [e this]))))
+                           (go (>! ch [e this]))))
         dragmoveend #(post 
                       (str "data="
                            {:nodes 
@@ -131,6 +135,7 @@
                             (map identity 
                                  (-> svg (.selectAll "g.link") 
                                      .data))}))
+        dragstart #(go (>! over-chan :waiting))
         drag (-> d3 
                  .-behavior 
                  .drag
@@ -139,7 +144,8 @@
         dragvote (-> d3 
                      .-behavior 
                      .drag
-                     (.on "drag" drag-vote-move))
+                     (.on "drag" drag-vote-move)
+                     (.on "dragstart" dragstart))
         find-node (fn [coord posn]
                     (fn [d i] (coord (nth nodes (posn d)))))]
     (-> svg (.selectAll "use")
@@ -173,7 +179,22 @@
                 :x2 (find-node :x :head)
                 :y1 (find-node :y :tail)
                 :y2 (find-node :y :head)}))
-    (go (while true
-          (over (<! c))))))
+    (go (loop [state nil]
+          (let [s (<! ch)]
+            (if (:state s)
+              (.log js/console (:state s))
+              (over s))
+            (recur s))))))
+
+(go (loop [state :waiting]
+      (let [s (case state 
+                :waiting :seeking
+                :seeking :connecting
+                :connecting :connected
+                :waiting)]
+        (.attr svg "class" (name state))
+        (<! over-chan)
+        (>! ch {:state s})
+        (recur s))))
 
 (-> d3 (.json "/json" #(update (js->clj %1 :keywordize-keys true))))
