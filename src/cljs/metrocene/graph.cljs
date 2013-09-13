@@ -38,6 +38,7 @@
 (make-symbol svg "plus")
 
 (def data-chan (chan))
+(def drag-chan (chan))
 
 (defn- drag-move [nodes e i]
   (go 
@@ -45,10 +46,32 @@
        {:nodes (-> (assoc-in nodes [i :x] (.-x e))
                    (assoc-in [i :y] (.-y e)))})))
 
+(go
+ (loop [tail nil]
+   (let [p (.log js/console tail)
+         {e :event 
+          nodes :nodes 
+          links :links 
+          node :node} (<! drag-chan)]
+     (recur 
+      (reduce 
+       (fn [t d] (let [dx  (- (:x d) (.-x e))
+                       dy  (- (:y d) (.-y e))
+                       close (< (.sqrt js/Math
+                                       (+
+                                        (.pow js/Math dx 2)
+                                        (.pow js/Math dy 2)))
+                                20)]
+                   (if close (:id d) t)))
+       tail
+       (-> node 
+           .data))))))
+
+
 (defn update [data]
   (go
-   (loop [d (merge data {:state :waiting})]
-     (let [{nodes :nodes links :links state :state tail :tail} d
+   (loop [d (merge {:state :start} data)]
+     (let [{nodes :nodes links :links state :state} d
            post (fn [data] 
                   (-> d3 (.xhr "/json")
                       (.header "Content-Type" 
@@ -65,7 +88,7 @@
            link (-> svg (.selectAll "g.link")
                     (.data links #(:id %)))
            new-link (-> link 
-                        .enter 
+                        .enter
                         (.append "g")                 
                         (.attr "class" #(str "link " (:colour %))))
            line (-> new-link
@@ -73,36 +96,12 @@
            dragmove #(drag-move nodes (.-event d3) %2)
            node (-> svg (.selectAll "g.node")
                     (.data nodes #(:id %)))
-           over (fn 
-                  [e this nodes links state tail]
-                  (-> node 
-                      (.each 
-                       (fn [d i] (let [dx  (- (:x d) (.-x e))
-                                       dy  (- (:y d) (.-y e))
-                                       close (< (.sqrt js/Math
-                                                       (+
-                                                        (.pow js/Math dx 2)
-                                                        (.pow js/Math dy 2)))
-                                                20)]
-                                   (when (and close (not= tail (:id d)))
-                                     (when tail
-                                       (go (>! data-chan 
-                                               {:nodes nodes
-                                                :links (conj links 
-                                                             {:id (str (:id d) 
-                                                                       tail)
-                                                              :tail tail
-                                                              :head i
-                                                              :weight 1
-                                                              :colour "pos"})
-                                                :state :connected}))
-                                       (go (>! data-chan {:tail (:id d)
-                                                          :state :connecting})))))))))
-           drag-vote-move #(this-as 
-                            this
-                            (let [e (-> d3 .-event)]
-                              (over e this nodes links state tail)
-                              (drag-move nodes e %2)))
+           drag-vote-move #(let [e (-> d3 .-event)]
+                             (go (>! drag-chan {:event e 
+                                                :nodes nodes 
+                                                :links links 
+                                                :node node}))
+                             #_(drag-move nodes e %2))
            dragmoveend #(post  
                          (str "data="
                               {:nodes 
@@ -113,7 +112,7 @@
                                (map identity 
                                     (-> svg (.selectAll "g.link") 
                                         .data))}))
-           dragstart #(go (>! data-chan {:state :waiting}))
+           dragstart #(go (>! data-chan {:state :seeking}))
            dragnode (-> d3 
                         .-behavior 
                         .drag
@@ -137,8 +136,6 @@
            (.attr "xlink:href" "#plus")
            (.attr "width" 30)
            (.attr "height" 30))
-       (-> svg
-           (.attr "class" (name state)))
        (-> node 
            (.call dragnode)
            (.attr "class" #(str "node " (:colour %)))
@@ -151,6 +148,8 @@
        (-> new-node 
            (.append "text")
            (.text #(:name %)))
+       (-> svg 
+           (.attr "class" (name state)))
        (-> svg (.selectAll ".link line")
            (.attr {:x1 (find-node :x :tail)
                    :x2 (find-node :x :head)
