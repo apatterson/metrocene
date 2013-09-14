@@ -52,110 +52,133 @@
          {e :event 
           nodes :nodes 
           links :links 
-          node :node} (<! drag-chan)]
-     (recur 
-      (reduce 
-       (fn [t d] (let [dx  (- (:x d) (.-x e))
-                       dy  (- (:y d) (.-y e))
-                       close (< (.sqrt js/Math
-                                       (+
-                                        (.pow js/Math dx 2)
-                                        (.pow js/Math dy 2)))
-                                20)]
-                   (if close (:id d) t)))
-       tail
-       (-> node 
-           .data))))))
+          node :node} (<! drag-chan)
+         new-tail 
+         (reduce 
+          (fn [t d] (let [dx  (- (:x d) (.-x e))
+                          dy  (- (:y d) (.-y e))
+                          close (< (.sqrt js/Math
+                                          (+
+                                           (.pow js/Math dx 2)
+                                           (.pow js/Math dy 2)))
+                                   20)]
+                      (if close (:id d) t)))
+          tail
+          (-> node 
+              .data))]
+     (when (not= tail new-tail)
+       (do
+         (>! data-chan {:state (if tail :connected :connecting)
+                        :tail tail
+                        :head new-tail})
+         (when tail (recur nil))))
+     (recur new-tail))))
+         
 
 
-(defn update [data]
-  (go
-   (loop [d (merge {:state :start} data)]
-     (let [{nodes :nodes links :links state :state} d
-           post (fn [data] 
-                  (-> d3 (.xhr "/json")
-                      (.header "Content-Type" 
-                               "application/x-www-form-urlencoded")
-                      (.response #(.parse js/JSON (.-responseText %)))
-                      (.post data #(go 
-                                    (>! data-chan 
-                                        (js->clj %2 :keywordize-keys true))))))
-           weight (fn [l r] (if (or (= l r) (> (:y l) (:y r))) 
-                              0 
-                              (if (> (:x l) (:x r)) 
-                                1 
-                                -1)))
-           link (-> svg (.selectAll "g.link")
-                    (.data links #(:id %)))
-           new-link (-> link 
-                        .enter
-                        (.append "g")                 
-                        (.attr "class" #(str "link " (:colour %))))
-           line (-> new-link
-                    (.append "line"))
-           dragmove #(drag-move nodes (.-event d3) %2)
-           node (-> svg (.selectAll "g.node")
-                    (.data nodes #(:id %)))
-           drag-vote-move #(let [e (-> d3 .-event)]
-                             (go (>! drag-chan {:event e 
-                                                :nodes nodes 
-                                                :links links 
-                                                :node node}))
-                             #_(drag-move nodes e %2))
-           dragmoveend #(post  
-                         (str "data="
-                              {:nodes 
-                               (map identity 
-                                    (-> svg (.selectAll "g.node") 
-                                        .data))
-                               :links 
-                               (map identity 
-                                    (-> svg (.selectAll "g.link") 
-                                        .data))}))
-           dragstart #(go (>! data-chan {:state :seeking}))
-           dragnode (-> d3 
-                        .-behavior 
-                        .drag
-                        (.on "drag" dragmove)
-                        (.on "dragend" dragmoveend))
-           dragvote (-> d3 
-                        .-behavior 
-                        .drag
-                        (.on "dragstart" dragstart)
-                        (.on "drag" drag-vote-move))
-           new-node (-> node 
-                        .enter 
-                        (.append "g"))
-           find-node (fn [coord posn]
-                       (fn [d i] (coord (nth nodes (posn d)))))]
-       (-> svg (.selectAll "use")
-           (.data [{:id "plus" :done false :new nil}])
-           .enter
-           (.append "use")
-           (.call dragvote)
-           (.attr "xlink:href" "#plus")
-           (.attr "width" 30)
-           (.attr "height" 30))
-       (-> node 
-           (.call dragnode)
-           (.attr "class" #(str "node " (:colour %)))
-           (.attr {:transform #(str "translate(" 
-                                    (:x %) "," 
-                                    (:y %) ")")}))
-       (-> new-node
-           (.append "circle")
-           (.attr "r" 20))
-       (-> new-node 
-           (.append "text")
-           (.text #(:name %)))
-       (-> svg 
-           (.attr "class" (name state)))
-       (-> svg (.selectAll ".link line")
-           (.attr {:x1 (find-node :x :tail)
-                   :x2 (find-node :x :head)
-                   :y1 (find-node :y :tail)
-                   :y2 (find-node :y :head)}))
-       (recur (merge d (<! data-chan)))))))
+(go
+ (loop [d {:state :start}]
+   (let [new-data (merge d (<! data-chan))
+         {nodes :nodes 
+          links :links 
+          state :state 
+          tail :tail
+          head :head} new-data
+         post (fn [data] 
+                (-> d3 (.xhr "/json")
+                    (.header "Content-Type" 
+                             "application/x-www-form-urlencoded")
+                    (.response #(.parse js/JSON (.-responseText %)))
+                    (.post data #(go 
+                                  (>! data-chan 
+                                      (js->clj %2 :keywordize-keys true))))))
+         weight (fn [l r] (if (or (= l r) (> (:y l) (:y r))) 
+                            0 
+                            (if (> (:x l) (:x r)) 
+                              1 
+                              -1)))
+         link (-> svg (.selectAll "g.link")
+                  (.data links #(:id %)))
+         new-link (-> link 
+                      .enter
+                      (.append "g")                 
+                      (.attr "class" #(str "link " (:colour %))))
+         line (-> new-link
+                  (.append "line"))
+         dragmove #(drag-move nodes (.-event d3) %2)
+         node (-> svg (.selectAll "g.node")
+                  (.data nodes #(:id %)))
+         drag-vote-move #(let [e (-> d3 .-event)]
+                           (go (>! drag-chan {:event e 
+                                              :nodes nodes 
+                                              :links links 
+                                              :node node}))
+                           #_(drag-move nodes e %2))
+         dragmoveend #(post  
+                       (str "data="
+                            {:nodes 
+                             (map identity 
+                                  (-> svg (.selectAll "g.node") 
+                                      .data))
+                             :links 
+                             (map identity 
+                                  (-> svg (.selectAll "g.link") 
+                                      .data))}))
+         dragstart #(go (>! data-chan {:state :seeking}))
+         drag-vote-end #(go (>! data-chan {:state :waiting}))
+         dragnode (-> d3 
+                      .-behavior 
+                      .drag
+                      (.on "drag" dragmove)
+                      (.on "dragend" dragmoveend))
+         dragvote (-> d3 
+                      .-behavior 
+                      .drag
+                      (.on "dragstart" dragstart)
+                      (.on "drag" drag-vote-move)
+                      (.on "dragend" drag-vote-end))
+         new-node (-> node 
+                      .enter 
+                      (.append "g"))
+         find-node (fn [coord posn]
+                     (fn [d i] (coord (nth nodes (posn d)))))
+         changes (if (= state :connecte)
+                   (assoc-in new-data 
+                             [:links] 
+                             (conj (:links new-data) 
+                                   {:id (str (:id tail) (:id head))
+                                    :weight 1
+                                    :tail tail
+                                    :head head}))
+                   new-data)]
+     (-> svg (.selectAll "use")
+         (.data [{:id "plus" :done false :new nil}])
+         .enter
+         (.append "use")
+         (.call dragvote)
+         (.attr "xlink:href" "#plus")
+         (.attr "width" 30)
+         (.attr "height" 30))
+     (-> node 
+         (.call dragnode)
+         (.attr "class" #(str "node " (:colour %)))
+         (.attr {:transform #(str "translate(" 
+                                  (:x %) "," 
+                                  (:y %) ")")}))
+     (-> new-node
+         (.append "circle")
+         (.attr "r" 20))
+     (-> new-node 
+         (.append "text")
+         (.text #(:name %)))
+     (-> svg 
+         (.attr "class" (name state)))
+     (-> svg (.selectAll ".link line")
+         (.attr {:x1 (find-node :x :tail)
+                 :x2 (find-node :x :head)
+                 :y1 (find-node :y :tail)
+                 :y2 (find-node :y :head)}))
+     (recur changes))))
 
-(-> d3 (.json "/json" #(update (js->clj %1 :keywordize-keys true))))
+(-> d3 (.json "/json" #(go (>! data-chan (js->clj %1 :keywordize-keys true)))))
 
