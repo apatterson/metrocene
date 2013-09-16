@@ -39,6 +39,7 @@
 
 (def data-chan (chan))
 (def drag-chan (chan))
+(def state-chan (chan))
 
 (defn- drag-move [nodes e i]
   (go 
@@ -47,34 +48,44 @@
                    (assoc-in [i :y] (.-y e)))})))
 
 (go
- (loop [tail nil]
-   (let [p (.log js/console tail)
-         {e :event 
-          nodes :nodes 
-          links :links 
-          node :node} (<! drag-chan)
-         new-tail 
-         (reduce 
-          (fn [t d] (let [dx  (- (:x d) (.-x e))
-                          dy  (- (:y d) (.-y e))
-                          close (< (.sqrt js/Math
-                                          (+
-                                           (.pow js/Math dx 2)
-                                           (.pow js/Math dy 2)))
-                                   20)]
-                      (if close (:id d) t)))
-          tail
-          (-> node 
-              .data))]
-     (when (not= tail new-tail)
-       (do
-         (>! data-chan {:state (if tail :connected :connecting)
-                        :tail tail
-                        :head new-tail})
-         (when tail (recur nil))))
-     (recur new-tail))))
-         
-
+ (loop [tail nil target nil state nil]
+   (let [{e :event node :node end-state :state} (<! drag-chan)
+         end -1
+         new-target 
+         (if (and e node)
+           (nth 
+            (reduce 
+             (fn [[t i j] d] (let [dx  (- (:x d) (.-x e))
+                                   dy  (- (:y d) (.-y e))
+                                   close (< (.sqrt js/Math
+                                                   (+
+                                                    (.pow js/Math dx 2)
+                                                    (.pow js/Math dy 2)))
+                                            20)]
+                               [(if close d t) (inc i) (if close i j)]))
+                   [nil 0 -1]
+                   (-> node 
+                       .data)) 2) end)]
+     (.log js/console target new-target state end-state)
+     (if end-state (do
+                     (>! data-chan {:state end-state
+                                    :tail nil
+                                    :head nil})
+                     (recur end end end-state)))
+     (when-not (= target new-target) ;;target changed
+       (cond (and (= tail end) (= state :seeking))
+             (do
+               (>! data-chan {:state :connecting
+                              :tail new-target
+                              :head end})
+               (recur new-target new-target :connecting))
+             (and (> tail end) (= state :connecting) new-target)
+             (do
+               (>! data-chan {:state :connected
+                              :tail tail
+                              :head new-target})
+               (recur end end :connected))))
+     (recur tail new-target (if end-state end-state state)))))
 
 (go
  (loop [d {:state :start}]
@@ -110,8 +121,6 @@
                   (.data nodes #(:id %)))
          drag-vote-move #(let [e (-> d3 .-event)]
                            (go (>! drag-chan {:event e 
-                                              :nodes nodes 
-                                              :links links 
                                               :node node}))
                            #_(drag-move nodes e %2))
          dragmoveend #(post  
@@ -124,8 +133,8 @@
                              (map identity 
                                   (-> svg (.selectAll "g.link") 
                                       .data))}))
-         dragstart #(go (>! data-chan {:state :seeking}))
-         drag-vote-end #(go (>! data-chan {:state :waiting}))
+         dragstart #(go (>! drag-chan {:state :seeking}))
+         drag-vote-end #(go (>! drag-chan {:state :waiting}))
          dragnode (-> d3 
                       .-behavior 
                       .drag
@@ -142,7 +151,7 @@
                       (.append "g"))
          find-node (fn [coord posn]
                      (fn [d i] (coord (nth nodes (posn d)))))
-         changes (if (= state :connecte)
+         changes (if (= state :connected)
                    (assoc-in new-data 
                              [:links] 
                              (conj (:links new-data) 
@@ -157,6 +166,7 @@
          (.append "use")
          (.call dragvote)
          (.attr "xlink:href" "#plus")
+         (.attr "x" 300)
          (.attr "width" 30)
          (.attr "height" 30))
      (-> node 
