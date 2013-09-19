@@ -30,8 +30,8 @@
             {:id "c" :name "Economic Growth"    :x 300 :y 300 :r 20 
              :colour :neg}]
            :links
-           [{:id "x" :weight 1 :tail 1 :head 2 :colour :neg}
-            {:id "y" :weight -2 :tail 2 :head 0 :colour :neg}]})})
+           [{:id "x" :weight 1 :tail 1 :head 2}
+            {:id "y" :weight -2 :tail 2 :head 0}]})})
 
 (defn post [{data :data}]
   (let [nodes (:nodes (edn/read-string data))

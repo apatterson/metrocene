@@ -79,11 +79,12 @@
                               :tail new-target
                               :head end})
                (recur new-target new-target :connecting))
-             (and (> tail end) (= state :connecting) new-target)
+             (and (> tail end) (= state :connecting) (> new-target end))
              (do
                (>! data-chan {:state :connected
                               :tail tail
-                              :head new-target})
+                              :head new-target
+                              :weight 1})
                (recur end end :connected))))
      (recur tail new-target (if end-state end-state state)))))
 
@@ -94,7 +95,8 @@
           links :links 
           state :state 
           tail :tail
-          head :head} new-data
+          head :head
+          weight :weight} new-data
          post (fn [data] 
                 (-> d3 (.xhr "/json")
                     (.header "Content-Type" 
@@ -113,7 +115,8 @@
          new-link (-> link 
                       .enter
                       (.append "g")                 
-                      (.attr "class" #(str "link " (:colour %))))
+                      (.attr "class" #(str "link " 
+                                           (if (< weight 0) "neg" "pos"))))
          line (-> new-link
                   (.append "line"))
          dragmove #(drag-move nodes (.-event d3) %2)
@@ -156,7 +159,7 @@
                              [:links] 
                              (conj (:links new-data) 
                                    {:id (str (:id tail) (:id head))
-                                    :weight 1
+                                    :weight weight
                                     :tail tail
                                     :head head}))
                    new-data)]
