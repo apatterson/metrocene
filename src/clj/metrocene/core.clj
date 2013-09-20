@@ -18,20 +18,22 @@
    :headers {"Content-Type" "text/html; charset=utf8"}
    :body (slurp (io/resource "venn.html"))})
 
-(defn json []
-  {:status 200
-   :headers {"Content-Type" "application/json"}
-   :body (json/write-str
-          {:nodes 
-           [{:id "a" :name "Greenhouse Gases"   :x 100 :y 100 :r 20 
-             :colour :pos}
-            {:id "b" :name "Climate Change"     :x 200 :y 200 :r 20 
-             :colour :neg}
-            {:id "c" :name "Economic Growth"    :x 300 :y 300 :r 20 
-             :colour :neg}]
-           :links
-           [{:id "x" :weight 1 :tail 1 :head 2}
-            {:id "y" :weight -2 :tail 2 :head 0}]})})
+(defn json [request]
+  (let [data (if-let [d (-> request :session :data)]
+               d
+               {:nodes 
+                [{:id "a" :name "Greenhouse Gases"   :x 100 :y 100 :r 20 
+                  :colour :pos}
+                 {:id "b" :name "Climate Change"     :x 200 :y 200 :r 20 
+                  :colour :neg}
+                 {:id "c" :name "Economic Growth"    :x 300 :y 100 :r 20 
+                  :colour :neg}]
+                :links
+                [{:id "x" :weight 1 :tail 1 :head 2}
+                 {:id "y" :weight -2 :tail 2 :head 0}]})]
+    {:status 200
+     :headers {"Content-Type" "application/json"}
+     :body (json/write-str data)}))
 
 (defn post [{data :data}]
   (let [nodes (:nodes (edn/read-string data))
@@ -59,11 +61,12 @@
                             :links (map #(assoc % 
                                            :colour (if (< (:weight %) 0)
                                                      :neg :pos)) 
-                                        links)})}))
+                                        links)})
+     :session {:data {:nodes newnodes :links links}}}))
 
 (defroutes app
   (GET "/" [] (render-app))
-  (GET "/json" [] (json))
+  (GET "/json" request (json request))
   (POST "/json" {params :params} (post params))
   (route/resources "/" {:root "public"})
   (route/not-found "<h1>Page not found</h1>"))

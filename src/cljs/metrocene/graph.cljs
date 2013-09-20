@@ -102,9 +102,11 @@
                     (.header "Content-Type" 
                              "application/x-www-form-urlencoded")
                     (.response #(.parse js/JSON (.-responseText %)))
-                    (.post data #(go 
-                                  (>! data-chan 
-                                      (js->clj %2 :keywordize-keys true))))))
+                    (.post 
+                     (str "data=" 
+                          data #(go 
+                                 (>! data-chan 
+                                     (js->clj %2 :keywordize-keys true)))))))
          link (-> svg (.selectAll "g.link")
                   (.data links #(:id %)))
          new-link (-> link 
@@ -122,15 +124,14 @@
                                               :node node}))
                            #_(drag-move nodes e %2))
          dragmoveend #(post  
-                       (str "data="
-                            {:nodes 
-                             (map identity 
-                                  (-> svg (.selectAll "g.node") 
-                                      .data))
-                             :links 
-                             (map identity 
-                                  (-> svg (.selectAll "g.link") 
-                                      .data))}))
+                       {:nodes 
+                        (map identity 
+                             (-> svg (.selectAll "g.node") 
+                                 .data))
+                        :links 
+                        (map identity 
+                             (-> svg (.selectAll "g.link") 
+                                 .data))})
          dragstart #(go (>! drag-chan {:state :seeking}))
          drag-vote-end #(go (>! drag-chan {:state :waiting}))
          dragnode (-> d3 
@@ -186,6 +187,7 @@
                  :x2 (find-node :x :head)
                  :y1 (find-node :y :tail)
                  :y2 (find-node :y :head)}))
+     (post changes)
      (recur changes))))
 
 (-> d3 (.json "/json" #(go (>! data-chan (js->clj %1 :keywordize-keys true)))))
