@@ -29,8 +29,7 @@
                  {:id "c" :name "Economic Growth"    :x 300 :y 100 :r 20 
                   :colour :neg}]
                 :links
-                [{:id "x" :weight 1 :tail 1 :head 2}
-                 {:id "y" :weight -2 :tail 2 :head 0}]})]
+                []})]
     {:status 200
      :headers {"Content-Type" "application/json"}
      :body (json/write-str data)}))

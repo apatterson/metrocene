@@ -151,13 +151,20 @@
          find-node (fn [coord posn]
                      (fn [d i] (coord (nth nodes (posn d)))))
          changes (if (= state :connected)
-                   (assoc-in new-data 
-                             [:links] 
-                             (conj (:links new-data) 
-                                   {:id (str tail head)
-                                    :weight weight
-                                    :tail tail
-                                    :head head}))
+                   (assoc-in 
+                    new-data 
+                    [:links] 
+                    (map 
+                     second
+                     (merge-with
+                      #(merge %1 {:weight (+ (:weight %1) (:weight %2))})
+                      (into {} (map #(vector (:id %) %) 
+                                    (:links new-data))) ;;make map
+                      {(str tail "." head)
+                       {:id (str tail "." head)
+                       :weight weight
+                        :tail tail
+                        :head head}})))
                    new-data)]
      (-> svg (.selectAll "use")
          (.data [{:id "plus" :done false :new nil}])
