@@ -27,15 +27,21 @@
 (make-marker svg "marker")
 (make-marker svg "neg-marker")
 
-(defn make-symbol [parent id]
-  (-> parent
-      (.append "svg:symbol")
-      (.attr "id" id)
-      (.attr "viewBox" "0 0 3 3")
-      (.append "svg:path")
-      (.attr "d", "M1,0L2,0L2,1L3,1L3,2L2,2L2,3L1,3L1,2L0,2L0,1L1,1")))
+(-> svg
+    (.append "svg:symbol")
+    (.attr "id" "plus")
+    (.attr "viewBox" "0 0 3 3")
+    (.append "svg:path")
+    (.attr "d", "M1,0L2,0L2,1L3,1L3,2L2,2L2,3L1,3L1,2L0,2L0,1L1,1"))
 
-(make-symbol svg "plus")
+(-> svg
+    (.append "svg:symbol")
+    (.attr "id" "minus")
+    (.attr "viewBox" "0 0 3 3")
+    (.append "svg:path")
+    (.attr "d", "M0,1L3,1L3,2L0,2"))
+
+
 
 (def data-chan (chan))
 (def drag-chan (chan))
@@ -49,7 +55,7 @@
 
 (go
  (loop [tail nil target nil state nil]
-   (let [{e :event node :node end-state :state} (<! drag-chan)
+   (let [{e :event node :node end-state :state weight :weight} (<! drag-chan)
          end -1
          new-target 
          (if (and e node)
@@ -66,7 +72,6 @@
                    [nil 0 -1]
                    (-> node 
                        .data)) 2) end)]
-     (.log js/console target new-target state end-state)
      (if end-state (do
                      (>! data-chan {:state end-state
                                     :tail nil
@@ -84,7 +89,7 @@
                (>! data-chan {:state :connected
                               :tail tail
                               :head new-target
-                              :weight 1})
+                              :weight weight})
                (recur end end :connected))))
      (recur tail new-target (if end-state end-state state)))))
 
@@ -111,9 +116,9 @@
                   (.data links #(:id %)))
          new-link (-> link 
                       .enter
-                      (.append "g")                 
+                      (.append "g")
                       (.attr "class" #(str "link " 
-                                           (if (< weight 0) "neg" "pos"))))
+                                           (if (< (:weight %) 0) "neg" "pos"))))
          line (-> new-link
                   (.append "line"))
          dragmove #(drag-move nodes (.-event d3) %2)
@@ -121,7 +126,8 @@
                   (.data nodes #(:id %)))
          drag-vote-move #(let [e (-> d3 .-event)]
                            (go (>! drag-chan {:event e 
-                                              :node node}))
+                                              :node node
+                                              :weight %}))
                            #_(drag-move nodes e %2))
          dragmoveend #(post  
                        {:nodes 
@@ -166,15 +172,29 @@
                         :tail tail
                         :head head}})))
                    new-data)]
-     (-> svg (.selectAll "use")
-         (.data [{:id "plus" :done false :new nil}])
+     (-> svg (.selectAll "g.link")
+         (.attr "class" #(str "link " 
+                              (if (< (:weight %) 0) "neg" "pos"))))
+     (-> svg (.selectAll "use.plus")
+         (.data [1])
          .enter
          (.append "use")
          (.call dragvote)
-         (.attr "xlink:href" "#plus")
-         (.attr "x" 300)
-         (.attr "width" 30)
-         (.attr "height" 30))
+         (.attr {:xlink:href "#plus"
+                 :x 300
+                 :width 30
+                 :height 30
+                 :class "plus"}))
+     (-> svg (.selectAll "use.minus")
+         (.data [-1])
+         .enter
+         (.append "use")
+         (.call dragvote)
+         (.attr {:xlink:href "#minus"
+                 :x 400
+                 :width 30
+                 :height 30
+                 :class "minus"}))
      (-> node 
          (.call dragnode)
          (.attr "class" #(str "node " (:colour %)))
@@ -186,6 +206,7 @@
          (.attr "r" 20))
      (-> new-node 
          (.append "text")
+         (.attr {:x 20 :y -20})
          (.text #(:name %)))
      (-> svg 
          (.attr "class" (name state)))
