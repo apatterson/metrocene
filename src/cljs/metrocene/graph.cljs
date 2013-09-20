@@ -105,11 +105,6 @@
                     (.post data #(go 
                                   (>! data-chan 
                                       (js->clj %2 :keywordize-keys true))))))
-         weight (fn [l r] (if (or (= l r) (> (:y l) (:y r))) 
-                            0 
-                            (if (> (:x l) (:x r)) 
-                              1 
-                              -1)))
          link (-> svg (.selectAll "g.link")
                   (.data links #(:id %)))
          new-link (-> link 
@@ -158,7 +153,7 @@
                    (assoc-in new-data 
                              [:links] 
                              (conj (:links new-data) 
-                                   {:id (str (:id tail) (:id head))
+                                   {:id (str tail head)
                                     :weight weight
                                     :tail tail
                                     :head head}))
