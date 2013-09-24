@@ -90,7 +90,11 @@
                               :tail tail
                               :head new-target
                               :weight weight})
-               (recur end end :connected))))
+               (recur end end :connected))
+             (= state :connected) 
+             (do
+               (>! data-chan {:state :done})
+               (recur end end :done))))
      (recur tail new-target (if end-state end-state state)))))
 
 (go
@@ -121,22 +125,24 @@
                                            (if (< (:weight %) 0) "neg" "pos"))))
          line (-> new-link
                   (.append "line"))
-         changes (if (= state :connected)
-                   (assoc-in 
-                    new-data 
-                    [:links] 
-                    (map 
-                     second
-                     (merge-with
-                      #(merge %1 {:weight (+ (:weight %1) (:weight %2))})
-                      (into {} (map #(vector (:id %) %) 
-                                    (:links new-data))) ;;make map
-                      {(str tail "." head)
-                       {:id (str tail "." head)
-                        :weight weight
-                        :tail tail
-                        :head head}})))
-                   new-data)
+         changes (->
+                  (if (= state :connected)
+                    (assoc-in 
+                     new-data 
+                     [:links] 
+                     (map 
+                      second
+                      (merge-with
+                       #(merge %1 {:weight (+ (:weight %1) (:weight %2))})
+                       (into {} (map #(vector (:id %) %) links)) ;;make map
+                       {(str tail "." head)
+                        {:id (str tail "." head)
+                         :weight weight
+                         :tail tail
+                         :head head}})))
+                    new-data)
+                  (assoc-in [:state] state))
+         p (.log js/console state (:state changes))
          dragmove #(drag-move nodes (.-event d3) %2)
          node (-> svg (.selectAll "g.node")
                   (.data nodes #(:id %)))
@@ -155,9 +161,7 @@
                              (-> svg (.selectAll "g.link") 
                                  .data))})
          dragstart #(go (>! drag-chan {:state :seeking}))
-         drag-vote-end #(do
-                          (dragmoveend %1 %2)
-                          (go (>! drag-chan {:state :waiting})))
+         drag-vote-end #(go (>! drag-chan {:state :waiting}))
          dragnode (-> d3 
                       .-behavior 
                       .drag
@@ -174,6 +178,7 @@
                       (.append "g"))
          find-node (fn [coord posn]
                      (fn [d i] (coord (nth nodes (posn d)))))]
+     (if (= state :connected) (post changes))
      (-> svg (.selectAll "g.link")
          (.attr "class" #(str "link " 
                               (if (< (:weight %) 0) "neg" "pos"))))
