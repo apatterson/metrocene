@@ -108,10 +108,10 @@
                              "application/x-www-form-urlencoded")
                     (.response #(.parse js/JSON (.-responseText %)))
                     (.post 
-                     (str "data=" 
-                          data #(go 
-                                 (>! data-chan 
-                                     (js->clj %2 :keywordize-keys true)))))))
+                     (str "data=" data) 
+                     #(go 
+                       (>! data-chan 
+                           (js->clj %2 :keywordize-keys true))))))
          link (-> svg (.selectAll "g.link")
                   (.data links #(:id %)))
          new-link (-> link 
@@ -121,6 +121,22 @@
                                            (if (< (:weight %) 0) "neg" "pos"))))
          line (-> new-link
                   (.append "line"))
+         changes (if (= state :connected)
+                   (assoc-in 
+                    new-data 
+                    [:links] 
+                    (map 
+                     second
+                     (merge-with
+                      #(merge %1 {:weight (+ (:weight %1) (:weight %2))})
+                      (into {} (map #(vector (:id %) %) 
+                                    (:links new-data))) ;;make map
+                      {(str tail "." head)
+                       {:id (str tail "." head)
+                        :weight weight
+                        :tail tail
+                        :head head}})))
+                   new-data)
          dragmove #(drag-move nodes (.-event d3) %2)
          node (-> svg (.selectAll "g.node")
                   (.data nodes #(:id %)))
@@ -129,7 +145,7 @@
                                               :node node
                                               :weight %}))
                            #_(drag-move nodes e %2))
-         dragmoveend #(post  
+         dragmoveend #(post
                        {:nodes 
                         (map identity 
                              (-> svg (.selectAll "g.node") 
@@ -139,7 +155,9 @@
                              (-> svg (.selectAll "g.link") 
                                  .data))})
          dragstart #(go (>! drag-chan {:state :seeking}))
-         drag-vote-end #(go (>! drag-chan {:state :waiting}))
+         drag-vote-end #(do
+                          (dragmoveend %1 %2)
+                          (go (>! drag-chan {:state :waiting})))
          dragnode (-> d3 
                       .-behavior 
                       .drag
@@ -155,23 +173,7 @@
                       .enter 
                       (.append "g"))
          find-node (fn [coord posn]
-                     (fn [d i] (coord (nth nodes (posn d)))))
-         changes (if (= state :connected)
-                   (assoc-in 
-                    new-data 
-                    [:links] 
-                    (map 
-                     second
-                     (merge-with
-                      #(merge %1 {:weight (+ (:weight %1) (:weight %2))})
-                      (into {} (map #(vector (:id %) %) 
-                                    (:links new-data))) ;;make map
-                      {(str tail "." head)
-                       {:id (str tail "." head)
-                       :weight weight
-                        :tail tail
-                        :head head}})))
-                   new-data)]
+                     (fn [d i] (coord (nth nodes (posn d)))))]
      (-> svg (.selectAll "g.link")
          (.attr "class" #(str "link " 
                               (if (< (:weight %) 0) "neg" "pos"))))
@@ -197,10 +199,11 @@
                  :class "minus"}))
      (-> node 
          (.call dragnode)
-         (.attr "class" #(str "node " (:colour %)))
-         (.attr {:transform #(str "translate(" 
+         (.attr {:class "node"
+                 :transform #(str "translate(" 
                                   (:x %) "," 
-                                  (:y %) ")")}))
+                                  (:y %) ")")})        
+         (.style "fill" #(:colour %)))
      (-> new-node
          (.append "circle")
          (.attr "r" 20))
@@ -215,7 +218,6 @@
                  :x2 (find-node :x :head)
                  :y1 (find-node :y :tail)
                  :y2 (find-node :y :head)}))
-     (post changes)
      (recur changes))))
 
 (-> d3 (.json "/json" #(go (>! data-chan (js->clj %1 :keywordize-keys true)))))

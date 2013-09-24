@@ -1,12 +1,3 @@
-circle {
-    fill:green;
-    fill-opacity: 0.8;
-}
-
-circle:hover {
-    fill-opacity: 0.5;
-}
-
 line {
     stroke: green;
     stroke-width: 2;
@@ -16,20 +7,6 @@ line:hover {
     stroke-opacity: 0.5;
 }
 
-#marker {
-    fill:green;
-    stroke:green;
-}
-#neg-marker {
-    fill:red;
-    stroke:red;
-}
-.pos circle{
-    fill:green;
-}
-.neg circle{
-    fill:red;
-}
 .pos line{
     marker-end:url(#marker);
     stroke:green;
@@ -38,12 +15,9 @@ line:hover {
     marker-end:url(#neg-marker);
     stroke:red;
 }
-svg.waiting {
-    cursor: crosshair;
+.node text {
+    fill: black;
 }
-svg.connecting {
-    cursor: hand;
-}
-svg.connected {
-    cursor: default;
+.node circle {
+    stroke: grey;
 }

@@ -7,7 +7,9 @@
                  [clatrix "0.3.0"]
                  [net.drib/strokes "0.5.0"]
                  [org.clojure/math.numeric-tower "0.0.1"]
-                 [compojure "1.1.5"]]
+                 [compojure "1.1.5"]
+                 [com.keminglabs/c2 "0.2.3"]
+                 [com.keminglabs/vomnibus "0.3.1"]]
   :plugins [[lein-cljsbuild "0.3.2"]
             [lein-ring "0.8.3"]]
   :uberjar-name "metrocene-standalone.jar"

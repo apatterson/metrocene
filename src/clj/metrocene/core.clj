@@ -11,7 +11,10 @@
             [clojure.math.numeric-tower :as math]
             [clojure.string :as string]
             [compojure.route :as route]
-            [compojure.handler :as handler]))
+            [compojure.handler :as handler]
+            [c2.scale :as scale]
+            [vomnibus.color-brewer :as color-brewer]
+            [clojure.math.numeric-tower :as math]))
 
 (defn render-app []
   {:status 200
@@ -23,11 +26,11 @@
                d
                {:nodes 
                 [{:id "a" :name "Greenhouse Gases"   :x 100 :y 100 :r 20 
-                  :colour :pos}
+                  :colour :white}
                  {:id "b" :name "Climate Change"     :x 200 :y 200 :r 20 
-                  :colour :neg}
-                 {:id "c" :name "Economic Growth"    :x 300 :y 100 :r 20 
-                  :colour :neg}]
+                  :colour :white}
+                 {:id "c" :name "Economic Growth"    :x 300 :y 100 :r 20
+                  :colour :white}]
                 :links
                 []})]
     {:status 200
@@ -39,7 +42,7 @@
         links (:links (edn/read-string data))
         dim (count nodes)
         blank (matrix/matrix (repeat dim (repeat dim 0)))
-        causes (reduce #(matrix/mset %1 (:tail %2) (:head %2)
+        causes (reduce #(matrix/mset %1 (:head %2) (:tail %2)
                                      (:weight %2)) blank links)
         states (matrix/matrix (repeat dim (repeat 1 1)))
         squash (fn [out] (matrix/emap 
@@ -50,7 +53,13 @@
         out (nth (iterate #(squash (matrix/add % (matrix/mul causes %))) 
                           states) 10)
         minusahalf (matrix/sub out 0.5)
-        col-class #(if (< % 0) :neg :pos)
+        col-class #(let [colour-scheme color-brewer/RdBu-11 
+                         colour-scale
+                         (let [s (scale/linear 
+                                  :domain [-1 1]
+                                  :range [0 (count colour-scheme)])]
+                           (fn [d] (nth colour-scheme (math/floor (s d)))))]
+                     (colour-scale %))
         newnodes (map #(assoc (nth nodes %) 
                          :colour (col-class (first (get minusahalf %))))
                       (range (count nodes)))]
