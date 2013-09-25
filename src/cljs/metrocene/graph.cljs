@@ -6,7 +6,7 @@
 (strokes/bootstrap)
 
 (def svg (-> d3 
-             (.select "body") 
+             (.select "#metrocene") 
              (.append "svg")
              (.attr {:width 900 :height 900})))
 
