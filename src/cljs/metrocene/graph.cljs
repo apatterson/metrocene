@@ -55,7 +55,8 @@
 
 (go
  (loop [tail nil target nil state nil]
-   (let [{e :event node :node end-state :state weight :weight} (<! drag-chan)
+   (let [{e :event node :node end-state :state weight :weight this :this} 
+         (<! drag-chan)
          end -1
          [nt-datum x new-target] 
          (if (and e node)
@@ -81,6 +82,11 @@
        (-> svg (.selectAll "line.connect")
            (.attr {:x2 (.-x e)
                    :y2 (.-y e)})))
+     (if (= state :seeking)
+       (-> d3 (.select this)
+           (.style "opacity" 0.3))
+       (-> d3 (.select this)
+           (.style "opacity" 1)))
      (when-not (= target new-target) ;;target changed
        (cond (and (= tail end) (= state :seeking))
              (do
@@ -163,10 +169,13 @@
          dragmove #(drag-move nodes (.-event d3) %2)
          node (-> svg (.selectAll "g.node")
                   (.data nodes #(:id %)))
-         drag-vote-move #(let [e (-> d3 .-event)]
-                           (go (>! drag-chan {:event e 
-                                              :node node
-                                              :weight %})))
+         drag-vote-move #(this-as 
+                          this
+                          (let [e (-> d3 .-event)]
+                            (go (>! drag-chan {:event e 
+                                               :node node
+                                               :weight %
+                                               :this this}))))
          dragmoveend #(post
                        {:nodes 
                         (map identity 
