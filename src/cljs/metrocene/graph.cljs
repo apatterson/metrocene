@@ -89,8 +89,8 @@
                    .enter
                    (.append "line")
                    (.attr {:class "connect"})
-                   (.attr {:x1 (.-x e)
-                           :y1 (.-y e)
+                   (.attr {:x1 (:x nt-datum)
+                           :y1 (:y nt-datum)
                            :x2 (.-x e)
                            :y2 (.-y e)}))
                (>! data-chan {:state :connecting
