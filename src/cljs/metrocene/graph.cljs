@@ -57,35 +57,52 @@
  (loop [tail nil target nil state nil]
    (let [{e :event node :node end-state :state weight :weight} (<! drag-chan)
          end -1
-         new-target 
+         [nt-datum x new-target] 
          (if (and e node)
-           (nth 
-            (reduce 
-             (fn [[t i j] d] (let [dx  (- (:x d) (.-x e))
-                                   dy  (- (:y d) (.-y e))
-                                   close (< (.sqrt js/Math
-                                                   (+
-                                                    (.pow js/Math dx 2)
-                                                    (.pow js/Math dy 2)))
-                                            20)]
-                               [(if close d t) (inc i) (if close i j)]))
-                   [nil 0 -1]
-                   (-> node 
-                       .data)) 2) end)]
+           (reduce 
+            (fn [[t i j] d] (let [dx  (- (:x d) (.-x e))
+                                  dy  (- (:y d) (.-y e))
+                                  close (< (.sqrt js/Math
+                                                  (+
+                                                   (.pow js/Math dx 2)
+                                                   (.pow js/Math dy 2)))
+                                           20)]
+                              [(if close d t) (inc i) (if close i j)]))
+            [nil 0 -1]
+            (-> node 
+                .data)) 
+           [tail end end])]
      (if end-state (do
                      (>! data-chan {:state end-state
                                     :tail nil
                                     :head nil})
                      (recur end end end-state)))
+     (if (= state :connecting)
+       (-> svg (.selectAll "line.connect")
+           (.attr {:x2 (.-x e)
+                   :y2 (.-y e)})))
      (when-not (= target new-target) ;;target changed
        (cond (and (= tail end) (= state :seeking))
              (do
+               (-> svg (.selectAll "line.connect")
+                   (.data [1])
+                   .enter
+                   (.append "line")
+                   (.attr {:class "connect"})
+                   (.attr {:x1 (.-x e)
+                           :y1 (.-y e)
+                           :x2 (.-x e)
+                           :y2 (.-y e)}))
                (>! data-chan {:state :connecting
                               :tail new-target
                               :head end})
                (recur new-target new-target :connecting))
              (and (> tail end) (= state :connecting) (> new-target end))
              (do
+               (-> svg (.selectAll "line.connect")
+                   (.data [])
+                   .exit
+                   .remove)
                (>! data-chan {:state :connected
                               :tail tail
                               :head new-target
@@ -149,8 +166,7 @@
          drag-vote-move #(let [e (-> d3 .-event)]
                            (go (>! drag-chan {:event e 
                                               :node node
-                                              :weight %}))
-                           #_(drag-move nodes e %2))
+                                              :weight %})))
          dragmoveend #(post
                        {:nodes 
                         (map identity 
