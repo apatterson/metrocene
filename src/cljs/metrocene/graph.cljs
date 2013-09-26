@@ -8,14 +8,14 @@
 (def svg (-> d3 
              (.select "#metrocene") 
              (.append "svg")
-             (.attr {:width 900 :height 900})))
+             (.attr {:width 900 :height 600})))
 
 (defn make-marker [parent id]
   (-> parent
       (.append "svg:marker")
       (.attr "id" id)
       (.attr "viewBox" "0 0 10 10")
-      (.attr "refX" 15)
+      (.attr "refX" 30)
       (.attr "refY" 3)
       (.attr "markerUnits"  "strokeWidth")
       (.attr "markerWidth", 10)
@@ -130,7 +130,7 @@
           head :head
           weight :weight} new-data
          post (fn [data] 
-                (-> d3 (.xhr "/json")
+                (-> d3 (.xhr "http://localhost:5000/json")
                     (.header "Content-Type" 
                              "application/x-www-form-urlencoded")
                     (.response #(.parse js/JSON (.-responseText %)))
@@ -156,7 +156,12 @@
                      (map 
                       second
                       (merge-with
-                       #(merge %1 {:weight (+ (:weight %1) (:weight %2))})
+                       #(merge %1 
+                               {:weight 
+                                (let [w (+ (:weight %1) (:weight %2))]
+                                  (cond (< w -1) -1
+                                        (> w 1) 1
+                                        :else w))})
                        (into {} (map #(vector (:id %) %) links)) ;;make map
                        {(str tail "." head)
                         {:id (str tail "." head)
@@ -208,22 +213,24 @@
          (.attr "class" #(str "link " 
                               (if (< (:weight %) 0) "neg" "pos"))))
      (-> svg (.selectAll "use.plus")
-         (.data [1])
+         (.data [0.2])
          .enter
          (.append "use")
          (.call dragvote)
          (.attr {:xlink:href "#plus"
-                 :x 300
+                 :x 50
+                 :y 100
                  :width 30
                  :height 30
                  :class "plus"}))
      (-> svg (.selectAll "use.minus")
-         (.data [-1])
+         (.data [-0.2])
          .enter
          (.append "use")
          (.call dragvote)
          (.attr {:xlink:href "#minus"
-                 :x 400
+                 :x 50
+                 :y 200
                  :width 30
                  :height 30
                  :class "minus"}))
@@ -244,11 +251,14 @@
      (-> svg 
          (.attr "class" (name state)))
      (-> svg (.selectAll ".link line")
+         (.data links)
          (.attr {:x1 (find-node :x :tail)
                  :x2 (find-node :x :head)
                  :y1 (find-node :y :tail)
-                 :y2 (find-node :y :head)}))
+                 :y2 (find-node :y :head)})                      
+         (.style "stroke-width" #(* 3 (.abs js/Math (:weight %)))))
+     (.log js/console links)
      (recur changes))))
 
-(-> d3 (.json "/json" #(go (>! data-chan (js->clj %1 :keywordize-keys true)))))
+(-> d3 (.json "http://localhost:5000/json" #(go (>! data-chan (js->clj %1 :keywordize-keys true)))))
 

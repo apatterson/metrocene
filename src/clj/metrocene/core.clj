@@ -25,16 +25,25 @@
   (let [data (if-let [d (-> request :session :data)]
                d
                {:nodes 
-                [{:id "a" :name "Greenhouse Gases"   :x 100 :y 100 :r 20 
+                [{:id "a" :name "CO2 Emissions"   :x 200 :y 100 :r 20 
                   :colour :white}
-                 {:id "b" :name "Climate Change"     :x 200 :y 200 :r 20 
+                 {:id "b" :name "Global Warming"     :x 300 :y 200 :r 20 
                   :colour :white}
-                 {:id "c" :name "Economic Growth"    :x 300 :y 100 :r 20
+                 {:id "c" :name "Extreme weather"     :x 400 :y 300 :r 20 
+                  :colour :white}
+                 {:id "d" :name "Economic Growth"    :x 500 :y 200 :r 20
+                  :colour :white}
+                 {:id "e" :name "Clean Technology"    :x 600 :y 100 :r 20
+                  :colour :white}
+                 {:id "f" :name "Environmental Regulation"    :x 200 :y 300 :r 20
+                  :colour :white}
+                 {:id "g" :name "Free Trade"    :x 700 :y 300 :r 20
                   :colour :white}]
                 :links
                 []})]
     {:status 200
-     :headers {"Content-Type" "application/json"}
+     :headers {"Content-Type" "application/json"
+               "Access-Control-Allow-Origin" "http://localhost:3000"}
      :body (json/write-str data)}))
 
 (defn post [{data :data}]
@@ -64,7 +73,8 @@
                          :colour (col-class (first (get minusahalf %))))
                       (range (count nodes)))]
     {:status 200
-     :header {"Content-Type" "application/json"}
+     :headers {"Content-Type" "application/json"
+              "Access-Control-Allow-Origin" "http://localhost:3000"}
      :body (json/write-str {:nodes newnodes 
                             :links (map #(assoc % 
                                            :colour (if (< (:weight %) 0)
