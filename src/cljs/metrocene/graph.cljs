@@ -130,7 +130,7 @@
           head :head
           weight :weight} new-data
          post (fn [data] 
-                (-> d3 (.xhr "http://localhost:5000/json")
+                (-> d3 (.xhr "/json")
                     (.header "Content-Type" 
                              "application/x-www-form-urlencoded")
                     (.response #(.parse js/JSON (.-responseText %)))
@@ -260,5 +260,5 @@
      (.log js/console links)
      (recur changes))))
 
-(-> d3 (.json "http://localhost:5000/json" #(go (>! data-chan (js->clj %1 :keywordize-keys true)))))
+(-> d3 (.json "/json" #(go (>! data-chan (js->clj %1 :keywordize-keys true)))))
 
