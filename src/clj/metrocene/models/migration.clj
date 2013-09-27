@@ -2,7 +2,7 @@
   (:require [clojure.java.jdbc :as sql]))
 
 (defn create-nodes []
-  (sql/with-connection (System/getenv "DATABASE_URL")
+  (sql/with-connection (System/getenv "HEROKU_POSTGRESQL_MAROON_URL")
     (sql/create-table :nodes
       [:id :serial "PRIMARY KEY"]
       [:name :varchar "NOT NULL"]      
