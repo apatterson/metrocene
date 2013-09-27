@@ -14,7 +14,8 @@
             [compojure.handler :as handler]
             [c2.scale :as scale]
             [vomnibus.color-brewer :as color-brewer]
-            [clojure.math.numeric-tower :as math]))
+            [clojure.math.numeric-tower :as math]
+            [clojure.java.jdbc :as sql]))
 
 (defn render-app []
   {:status 200
@@ -24,21 +25,13 @@
 (defn json [request]
   (let [data (if-let [d (-> request :session :data)]
                d
-               {:nodes 
-                [{:id "a" :name "CO2 Emissions"   :x 200 :y 100 :r 20 
-                  :colour :white}
-                 {:id "b" :name "Global Warming"     :x 300 :y 200 :r 20 
-                  :colour :white}
-                 {:id "c" :name "Extreme weather"     :x 400 :y 300 :r 20 
-                  :colour :white}
-                 {:id "d" :name "Economic Growth"    :x 500 :y 200 :r 20
-                  :colour :white}
-                 {:id "e" :name "Clean Technology"    :x 600 :y 100 :r 20
-                  :colour :white}
-                 {:id "f" :name "Environmental Regulation"    :x 200 :y 300 :r 20
-                  :colour :white}
-                 {:id "g" :name "Free Trade"    :x 700 :y 300 :r 20
-                  :colour :white}]
+               {:nodes
+                (map #(merge % {:colour :#d1e5f0})
+                     (sql/with-connection 
+                       (System/getenv "HEROKU_POSTGRESQL_MAROON_URL")
+                       (sql/with-query-results results
+                         ["select id,name,x,y from nodes"]
+                         (into [] results))))
                 :links
                 []})]
     {:status 200
