@@ -213,7 +213,7 @@
          (.attr "class" #(str "link " 
                               (if (< (:weight %) 0) "neg" "pos"))))
      (-> svg (.selectAll "use.plus")
-         (.data [0.2])
+         (.data [0.3])
          .enter
          (.append "use")
          (.call dragvote)
@@ -224,7 +224,7 @@
                  :height 30
                  :class "plus"}))
      (-> svg (.selectAll "use.minus")
-         (.data [-0.2])
+         (.data [-0.3])
          .enter
          (.append "use")
          (.call dragvote)
@@ -256,7 +256,7 @@
                  :x2 (find-node :x :head)
                  :y1 (find-node :y :tail)
                  :y2 (find-node :y :head)})                      
-         (.style "stroke-width" #(* 3 (.abs js/Math (:weight %)))))
+         (.style "stroke-width" #(* 6 (.abs js/Math (:weight %)))))
      (.log js/console links)
      (recur changes))))
 

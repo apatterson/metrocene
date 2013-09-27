@@ -42,8 +42,7 @@
                 :links
                 []})]
     {:status 200
-     :headers {"Content-Type" "application/json"
-               "Access-Control-Allow-Origin" "http://localhost:3000"}
+     :headers {"Content-Type" "application/json"}
      :body (json/write-str data)}))
 
 (defn post [{data :data}]
@@ -73,8 +72,7 @@
                          :colour (col-class (first (get minusahalf %))))
                       (range (count nodes)))]
     {:status 200
-     :headers {"Content-Type" "application/json"
-              "Access-Control-Allow-Origin" "http://localhost:3000"}
+     :headers {"Content-Type" "application/json"}
      :body (json/write-str {:nodes newnodes 
                             :links (map #(assoc % 
                                            :colour (if (< (:weight %) 0)
