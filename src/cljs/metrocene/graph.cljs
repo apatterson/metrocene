@@ -1,6 +1,8 @@
 (ns metrocene.graph
   (:require [strokes :refer [d3]]
-            [cljs.core.async :as async :refer [chan <! >!]])
+            [cljs.core.async :as async :refer [chan <! >!]]
+            [vomnibus.color-brewer :as color-brewer]
+            [c2.scale :as scale])
   (:require-macros [cljs.core.async.macros :refer [go]]))
 
 (strokes/bootstrap)
@@ -15,7 +17,7 @@
       (.append "svg:marker")
       (.attr "id" id)
       (.attr "viewBox" "0 0 10 10")
-      (.attr "refX" 30)
+      (.attr "refX" 15)
       (.attr "refY" 3)
       (.attr "markerUnits"  "strokeWidth")
       (.attr "markerWidth", 10)
@@ -159,7 +161,8 @@
                        #(merge %1 
                                {:weight 
                                 (let [w (+ (:weight %1) (:weight %2))]
-                                  (cond (< w -1) -1
+                                  w
+                                  #_(cond (< w -1) -1
                                         (> w 1) 1
                                         :else w))})
                        (into {} (map #(vector (:id %) %) links)) ;;make map
@@ -213,7 +216,7 @@
          (.attr "class" #(str "link " 
                               (if (< (:weight %) 0) "neg" "pos"))))
      (-> svg (.selectAll "use.plus")
-         (.data [0.3])
+         (.data [1])
          .enter
          (.append "use")
          (.call dragvote)
@@ -224,7 +227,7 @@
                  :height 30
                  :class "plus"}))
      (-> svg (.selectAll "use.minus")
-         (.data [-0.3])
+         (.data [-1])
          .enter
          (.append "use")
          (.call dragvote)
@@ -256,8 +259,22 @@
                  :x2 (find-node :x :head)
                  :y1 (find-node :y :tail)
                  :y2 (find-node :y :head)})                      
-         (.style "stroke-width" #(* 6 (.abs js/Math (:weight %)))))
-     (.log js/console links)
+         (.style "stroke"
+                 #(let [colour-scheme color-brewer/RdBu-11 
+                        colour-scale
+                        (let [max-votes 10
+                              min-votes (unchecked-negate max-votes)
+                              scale (scale/linear
+                                     :domain [min-votes
+                                              max-votes]
+                                     :range [0 (count colour-scheme)])]
+                          (fn [wt](nth colour-scheme 
+                                       (.floor js/Math 
+                                               (scale
+                                                (-> wt
+                                                    (min max-votes)
+                                                    (max min-votes)))))))]
+                    (colour-scale (:weight %)))))
      (recur changes))))
 
 (-> d3 (.json "/json" #(go (>! data-chan (js->clj %1 :keywordize-keys true)))))

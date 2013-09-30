@@ -46,11 +46,12 @@
         causes (reduce #(matrix/mset %1 (:head %2) (:tail %2)
                                      (:weight %2)) blank links)
         states (matrix/matrix (repeat dim (repeat 1 1)))
+        gain 0.1
         squash (fn [out] (matrix/emap 
                           #(/ 1 
                               (inc (math/expt 
                                     Math/E 
-                                    (unchecked-negate %)))) out))
+                                    (unchecked-negate (* gain %))))) out))
         out (nth (iterate #(squash (matrix/add % (matrix/mul causes %))) 
                           states) 10)
         minusahalf (matrix/sub out 0.5)
@@ -64,6 +65,7 @@
         newnodes (map #(assoc (nth nodes %) 
                          :colour (col-class (first (get minusahalf %))))
                       (range (count nodes)))]
+    (println minusahalf)
     {:status 200
      :headers {"Content-Type" "application/json"}
      :body (json/write-str {:nodes newnodes 
