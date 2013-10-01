@@ -1,7 +1,6 @@
 (ns metrocene.models.migration
+  (:use metrocene.models.db)
   (:require [clojure.java.jdbc :as sql]))
-
-(def db (System/getenv "HEROKU_POSTGRESQL_MAROON_URL"))
 
 (defn create-nodes []
   (sql/with-connection db

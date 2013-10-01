@@ -1,5 +1,6 @@
 (ns metrocene.core
-  (:use compojure.core)
+  (:use compojure.core
+        metrocene.models.db)
   (:require [clojure.data.json :as json]
             [ring.adapter.jetty :as jetty]
             [ring.middleware.resource :as resources]
@@ -28,7 +29,7 @@
                {:nodes
                 (map #(merge % {:colour :#d1e5f0})
                      (sql/with-connection 
-                       (System/getenv "HEROKU_POSTGRESQL_MAROON_URL")
+                       db
                        (sql/with-query-results results
                          ["select id,name,x,y from nodes"]
                          (into [] results))))
@@ -65,7 +66,16 @@
         newnodes (map #(assoc (nth nodes %) 
                          :colour (col-class (first (get minusahalf %))))
                       (range (count nodes)))]
-    (println minusahalf)
+    (println links)
+    (try
+      (sql/with-connection db
+        (doseq [{tail :tail head :head weight :weight} links]
+          (sql/update-or-insert-values
+           :links
+           ["tail=? AND head=?" tail head]
+           {:tail tail :head head :weight weight})))
+      (catch Exception e
+        (sql/print-sql-exception-chain e)))
     {:status 200
      :headers {"Content-Type" "application/json"}
      :body (json/write-str {:nodes newnodes 
