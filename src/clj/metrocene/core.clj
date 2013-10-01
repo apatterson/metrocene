@@ -39,7 +39,7 @@
      :headers {"Content-Type" "application/json"}
      :body (json/write-str data)}))
 
-(defn post [{data :data}]
+(defn post [{{data :data} :params session :session}]
   (let [nodes (:nodes (edn/read-string data))
         links (:links (edn/read-string data))
         dim (count nodes)
@@ -67,16 +67,24 @@
                          :colour (col-class (first (get minusahalf %))))
                       (range (count nodes)))
         links-key (fn [d] (str (:tail d) "-" (:head d)))
-        array->map (fn [m] (map #(vector (links-key %) %) m))]
-    (println links)
+        array->map (fn [m] (into {} (map #(vector (links-key %) %) m)))
+        links-map (array->map links)
+        old-links (if-let [l (-> session :data :links)]
+                    l [])
+        diff-links (merge-with #(merge %1 {:weight (- (:weight %2) 
+                                                      (:weight %1))})
+                               (array->map old-links) 
+                               links-map)]
     (sql/with-connection db
       (doseq [{tail :tail head :head weight :weight}
               (vals
-               (merge
+               (merge-with
+                #(merge %1 {:weight (+ (:weight %2) 
+                                       (:weight %1))})
                 (sql/with-query-results results
                   ["select * from links"]
                   (into {} (array->map results)))
-                (into {} (array->map links))))]
+                diff-links))]
         (sql/update-or-insert-values
          :links
          ["tail=? AND head=?" tail head]
@@ -93,7 +101,7 @@
 (defroutes app
   (GET "/" [] (render-app))
   (GET "/json" request (json request))
-  (POST "/json" {params :params} (post params))
+  (POST "/json" request (post request))
   (route/resources "/" {:root "public"})
   (route/not-found "<h1>Page not found</h1>"))
 
