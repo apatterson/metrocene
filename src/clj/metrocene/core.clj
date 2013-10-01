@@ -55,7 +55,7 @@
         out (nth (iterate #(squash (matrix/add % (matrix/mul causes %))) 
                           states) 10)
         minusahalf (matrix/sub out 0.5)
-        col-class #(let [colour-scheme color-brewer/RdBu-11 
+        col-class #(let [colour-scheme color-brewer/RdYlBu-11 
                          colour-scale
                          (let [s (scale/linear 
                                   :domain [-1 1]

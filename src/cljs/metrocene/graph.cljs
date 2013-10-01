@@ -141,8 +141,9 @@
                      #(go 
                        (>! data-chan 
                            (js->clj %2 :keywordize-keys true))))))
+         links-key (fn [d i] (str (:tail d) "-" (:head d)))
          link (-> svg (.selectAll "g.link")
-                  (.data links #(:id %)))
+                  (.data links links-key))
          new-link (-> link 
                       .enter
                       (.append "g")
@@ -160,15 +161,10 @@
                       (merge-with
                        #(merge %1 
                                {:weight 
-                                (let [w (+ (:weight %1) (:weight %2))]
-                                  w
-                                  #_(cond (< w -1) -1
-                                        (> w 1) 1
-                                        :else w))})
-                       (into {} (map #(vector (:id %) %) links)) ;;make map
-                       {(str tail "." head)
-                        {:id (str tail "." head)
-                         :weight weight
+                                (+ (:weight %1) (:weight %2))})
+                       (into {} (map #(vector (links-key % %2) %) links)) ;;make map
+                       {(links-key {:tail tail :head head} 0)
+                        {:weight weight
                          :tail tail
                          :head head}})))
                     new-data)
@@ -260,7 +256,7 @@
                  :y1 (find-node :y :tail)
                  :y2 (find-node :y :head)})                      
          (.style "stroke"
-                 #(let [colour-scheme color-brewer/RdBu-11 
+                 #(let [colour-scheme color-brewer/RdYlBu-11 
                         colour-scale
                         (let [max-votes 10
                               min-votes (unchecked-negate max-votes)
