@@ -65,17 +65,22 @@
                      (colour-scale %))
         newnodes (map #(assoc (nth nodes %) 
                          :colour (col-class (first (get minusahalf %))))
-                      (range (count nodes)))]
+                      (range (count nodes)))
+        links-key (fn [d] (str (:tail d) "-" (:head d)))
+        array->map (fn [m] (map #(vector (links-key %) %) m))]
     (println links)
-    (try
-      (sql/with-connection db
-        (doseq [{tail :tail head :head weight :weight} links]
-          (sql/update-or-insert-values
-           :links
-           ["tail=? AND head=?" tail head]
-           {:tail tail :head head :weight weight})))
-      (catch Exception e
-        (sql/print-sql-exception-chain e)))
+    (sql/with-connection db
+      (doseq [{tail :tail head :head weight :weight}
+              (vals
+               (merge
+                (sql/with-query-results results
+                  ["select * from links"]
+                  (into {} (array->map results)))
+                (into {} (array->map links))))]
+        (sql/update-or-insert-values
+         :links
+         ["tail=? AND head=?" tail head]
+         {:tail tail :head head :weight weight})))
     {:status 200
      :headers {"Content-Type" "application/json"}
      :body (json/write-str {:nodes newnodes 
