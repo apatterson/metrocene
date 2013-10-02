@@ -4,13 +4,16 @@
 
 (defn create-nodes []
   (sql/with-connection db
-    (sql/drop-table :nodes)
+    (try
+      (sql/drop-table :nodes)
+      (catch java.sql.SQLException e
+        (sql/print-sql-exception e)))
     (sql/create-table :nodes
       [:id :serial "PRIMARY KEY"]
       [:name :varchar "NOT NULL"]      
       [:x :integer "NOT NULL"]      
       [:y :integer "NOT NULL"]
-      [:created_at :timestamp "NOT NULL" "DEFAULT CURRENT_TIMESTAMP"])
+      [:colour :varchar "NOT NULL" "DEFAULT '#ffffbf'"] )
     (sql/insert-records 
      :nodes
      {:name "Increased Emissions"   :x 200 :y 100}

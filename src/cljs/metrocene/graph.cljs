@@ -261,8 +261,8 @@
                         (let [max-votes 10
                               min-votes (unchecked-negate max-votes)
                               scale (scale/linear
-                                     :domain [min-votes
-                                              max-votes]
+                                     :domain [(dec min-votes)
+                                              (inc max-votes)]
                                      :range [0 (count colour-scheme)])]
                           (fn [wt](nth colour-scheme 
                                        (.floor js/Math 

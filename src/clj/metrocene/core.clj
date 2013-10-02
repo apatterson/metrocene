@@ -27,14 +27,17 @@
   (let [data (if-let [d (-> request :session :data)]
                d
                {:nodes
-                (map #(merge % {:colour :#d1e5f0})
-                     (sql/with-connection 
-                       db
-                       (sql/with-query-results results
-                         ["select id,name,x,y from nodes"]
-                         (into [] results))))
-                :links
-                []})]
+                (sql/with-connection 
+                  db
+                  (sql/with-query-results results
+                    ["select * from nodes"]
+                    (into [] results)))
+                  :links
+                (sql/with-connection 
+                  db
+                  (sql/with-query-results results
+                    ["select * from links"]
+                    (into [] results)))})]
     {:status 200
      :headers {"Content-Type" "application/json"}
      :body (json/write-str data)}))
@@ -88,7 +91,12 @@
         (sql/update-or-insert-values
          :links
          ["tail=? AND head=?" tail head]
-         {:tail tail :head head :weight weight})))
+         {:tail tail :head head :weight weight}))
+      (doseq [node newnodes]
+        (sql/update-or-insert-values
+         :nodes
+         ["id=?" (:id node)]
+         node)))
     {:status 200
      :headers {"Content-Type" "application/json"}
      :body (json/write-str {:nodes newnodes 
