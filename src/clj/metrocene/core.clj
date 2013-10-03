@@ -28,14 +28,15 @@
 (enlive/deftemplate index "venn.html" [{session :session}]
   [:#login]
   (enlive/content 
-   (if (-> session :cemerick.friend/identity)
-     (str 
+   (if (friend/authorized? #{::user} friend/*identity*)
+     (enlive/html
       "You are logged in as "
       (:name 
        (fb-auth/with-facebook-auth 
          {:access-token (-> session :cemerick.friend/identity 
                             :authentications first val :access_token)}
-         (fb-client/get [:me] {:extract :body}))))
+         (fb-client/get [:me] {:extract :body})))
+      ". " [:a {:href "/logout"} "Logout"])
      (enlive/html [:a {:href "/login"} "Please login"]))))
 
 (defn json [req]
@@ -172,8 +173,8 @@
        (friend/authorize #{::user} "Authorized page 2."))
   (GET "/admin" request
        (friend/authorize #{::admin} "Only admins can see this page."))
-  #_(ANY "/logout" request (update-in (ring.util.response/redirect "/login") [:session] dissoc ::identity))
-  (friend/logout (ANY "/logout" request (ring.util.response/redirect "/login")))
+  #_(ANY "/logout" request (update-in (ring.util.response/redirect "/login") [:session] dissoc :cemerick.friend/identity))
+  (friend/logout (ANY "/logout" request (ring.util.response/redirect "/")))
   (route/resources "/" {:root "public"})
   (route/not-found "<h1>Page not found</h1>"))
 
