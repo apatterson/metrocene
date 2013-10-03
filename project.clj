@@ -1,9 +1,9 @@
 (defproject metrocene "0.0.1-SNAPSHOT"
-  :dependencies [[org.clojure/clojure "1.5.1"]
+  :dependencies [[ring "1.2.0"]
+                 [org.clojure/clojure "1.5.1"]
                  [org.clojure/clojurescript "0.0-1859"]
                  [org.clojure/core.async "0.1.222.0-83d0c2-alpha"]
                  [org.clojure/data.json "0.2.0"]
-                 [ring/ring-jetty-adapter "1.1.6"]
                  [clatrix "0.3.0"]
                  [net.drib/strokes "0.5.0"]
                  [org.clojure/math.numeric-tower "0.0.1"]
@@ -11,7 +11,13 @@
                  [com.keminglabs/c2 "0.2.3"]
                  [com.keminglabs/vomnibus "0.3.1"]
                  [org.clojure/java.jdbc "0.2.3"]
-                 [postgresql "9.1-901.jdbc4"]]
+                 [postgresql "9.1-901.jdbc4"]
+                 [com.cemerick/friend "0.2.0"]
+                 [mavericklou/clj-facebook-graph "0.5.3"]
+                 [friend-oauth2 "0.0.4" 
+                  :exclusions [[org.apache.httpcomponents/httpcore] 
+                               [com.cemerick/friend]]]
+                 [enlive "1.1.4"]]
   :plugins [[lein-cljsbuild "0.3.2"]
             [lein-ring "0.8.3"]]
   :uberjar-name "metrocene-standalone.jar"
@@ -25,4 +31,5 @@
                    :optimizations :simple
                    :pretty-print true}
         :jar true}}}
-  :min-lein-version "2.0.0")
+  :min-lein-version "2.0.0"
+  :ring {:handler metrocene.core/handler})

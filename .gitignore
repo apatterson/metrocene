@@ -7,3 +7,4 @@
 /classes/
 /targets/
 .lein-deps-sum
+env.ps1

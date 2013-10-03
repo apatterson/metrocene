@@ -16,15 +16,30 @@
             [c2.scale :as scale]
             [vomnibus.color-brewer :as color-brewer]
             [clojure.math.numeric-tower :as math]
-            [clojure.java.jdbc :as sql]))
+            [clojure.java.jdbc :as sql]
+            [friend-oauth2.workflow :as oauth2]
+            [cemerick.friend :as friend]
+            [cemerick.friend.workflows :as workflows]
+            [cemerick.friend.credentials :as creds]
+            [clj-facebook-graph.client :as fb-client]
+            [clj-facebook-graph.auth :as fb-auth]
+            [net.cgrand.enlive-html :as enlive]))
+  
+(enlive/deftemplate index "venn.html" [{session :session}]
+  [:#login]
+  (enlive/content 
+   (if (-> session :cemerick.friend/identity)
+     (str 
+      "You are logged in as "
+      (:name 
+       (fb-auth/with-facebook-auth 
+         {:access-token (-> session :cemerick.friend/identity 
+                            :authentications first val :access_token)}
+         (fb-client/get [:me] {:extract :body}))))
+     (enlive/html [:a {:href "/login"} "Please login"]))))
 
-(defn render-app []
-  {:status 200
-   :headers {"Content-Type" "text/html; charset=utf8"}
-   :body (slurp (io/resource "venn.html"))})
-
-(defn json [request]
-  (let [data (if-let [d (-> request :session :data)]
+(defn json [req]
+  (let [data (if-let [d (-> req :session :data)]
                d
                {:nodes
                 (sql/with-connection 
@@ -32,7 +47,7 @@
                   (sql/with-query-results results
                     ["select * from nodes"]
                     (into [] results)))
-                  :links
+                :links
                 (sql/with-connection 
                   db
                   (sql/with-query-results results
@@ -78,6 +93,12 @@
                                                       (:weight %1))})
                                (array->map old-links) 
                                links-map)]
+    (if (-> session :cemerick.friend/identity)
+      (println
+       (fb-auth/with-facebook-auth 
+         {:access-token (-> session :cemerick.friend/identity 
+                            :authentications first val :access_token)}
+         (fb-client/get [:me] {:extract :body}))))
     (sql/with-connection db
       (doseq [{tail :tail head :head weight :weight}
               (vals
@@ -106,12 +127,68 @@
                                         links)})
      :session {:data {:nodes newnodes :links links}}}))
 
+;; OAuth2 config
+(defn access-token-parsefn
+  [response]
+  (-> response
+      :body
+      ring.util.codec/form-decode
+      clojure.walk/keywordize-keys
+      :access_token))
+
+(def config-auth {:roles #{::user}})
+
+(def client-config
+  {:client-id (System/getenv "FACEBOOK_APP_ID")
+   :client-secret (System/getenv "FACEBOOK_SECRET")
+   :callback {:domain (System/getenv "FACEBOOK_CALLBACK") 
+              :path "/facebook.callback"}})
+
+(def uri-config
+  {:authentication-uri {:url "https://www.facebook.com/dialog/oauth"
+                        :query {:client_id (:client-id client-config)
+                                :redirect_uri (oauth2/format-config-uri 
+                                               client-config)}}
+   
+   :access-token-uri {:url "https://graph.facebook.com/oauth/access_token"
+                      :query {:client_id (:client-id client-config)
+                              :client_secret (:client-secret client-config)
+                              :redirect_uri (oauth2/format-config-uri 
+                                             client-config)
+                              :code ""}}})
+
 (defroutes app
-  (GET "/" [] (render-app))
+  (GET "/login" [] (friend/authorize #{::user} {:status 200}))
+  (GET "/" request (index request))
   (GET "/json" request (json request))
   (POST "/json" request (post request))
+  (GET "/user" request
+       (friend/authorize 
+        #{::user} 
+        {:status 200
+         :headers {"Content-Type" "text"}
+         :body (fb-client/get [:me] {:extract :body})}))
+  (GET "/authlink2" request
+       (friend/authorize #{::user} "Authorized page 2."))
+  (GET "/admin" request
+       (friend/authorize #{::admin} "Only admins can see this page."))
+  #_(ANY "/logout" request (update-in (ring.util.response/redirect "/login") [:session] dissoc ::identity))
+  (friend/logout (ANY "/logout" request (ring.util.response/redirect "/login")))
   (route/resources "/" {:root "public"})
   (route/not-found "<h1>Page not found</h1>"))
 
+(def handler 
+  (handler/site 
+   (friend/authenticate
+    app
+    {:allow-anon? true
+     :workflows [(oauth2/workflow
+                  {:client-config client-config
+                   :uri-config uri-config
+                   :access-token-parsefn access-token-parsefn
+                   :config-auth config-auth})]})))
+
 (defn -main [port]
-  (jetty/run-jetty (handler/site app) {:port (Integer. port) :join? false}))
+  (jetty/run-jetty 
+   handler
+   {:port (Integer. port) :join? false}))
