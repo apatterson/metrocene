@@ -23,7 +23,11 @@
             [cemerick.friend.credentials :as creds]
             [clj-facebook-graph.client :as fb-client]
             [clj-facebook-graph.auth :as fb-auth]
-            [net.cgrand.enlive-html :as enlive]))
+            [net.cgrand.enlive-html :as enlive]
+            [clojure.core.typed :refer :all]
+            [metrocene.models.db :as schema]))
+
+(def-alias Response '{:status Int :body String :headers Map})
   
 (enlive/deftemplate index "venn.html" [{session :session}]
   [:#login]
@@ -39,6 +43,7 @@
       ". " [:a {:href "/logout"} "Logout"])
      (enlive/html [:a {:href "/login"} "Please login"]))))
 
+(ann json [Map -> Response])
 (defn json [req]
   (let [data (if-let [d (-> req :session :data)]
                d
@@ -93,32 +98,33 @@
         diff-links (merge-with #(merge %1 {:weight (- (:weight %2) 
                                                       (:weight %1))})
                                (array->map old-links) 
-                               links-map)]
-    (if (-> session :cemerick.friend/identity)
-      (println
-       (fb-auth/with-facebook-auth 
-         {:access-token (-> session :cemerick.friend/identity 
-                            :authentications first val :access_token)}
-         (fb-client/get [:me] {:extract :body}))))
-    (sql/with-connection db
-      (doseq [{tail :tail head :head weight :weight}
-              (vals
-               (merge-with
-                #(merge %1 {:weight (+ (:weight %2) 
-                                       (:weight %1))})
-                (sql/with-query-results results
-                  ["select * from links"]
-                  (into {} (array->map results)))
-                diff-links))]
-        (sql/update-or-insert-values
-         :links
-         ["tail=? AND head=?" tail head]
-         {:tail tail :head head :weight weight}))
-      (doseq [node newnodes]
-        (sql/update-or-insert-values
-         :nodes
-         ["id=?" (:id node)]
-         node)))
+                               links-map)
+        user (if (-> session :cemerick.friend/identity)
+               (:id
+                (fb-auth/with-facebook-auth 
+                  {:access-token (-> session :cemerick.friend/identity 
+                                     :authentications first val :access_token)}
+                  (fb-client/get [:me] {:extract :body}))))]
+    (when user
+      (sql/with-connection db
+        (doseq [{tail :tail head :head weight :weight}
+                (vals
+                 (merge-with
+                  #(merge %1 {:weight (+ (:weight %2) 
+                                         (:weight %1))})
+                  (sql/with-query-results results
+                    ["select * from links"]
+                    (into {} (array->map results)))
+                  diff-links))]
+          (sql/update-or-insert-values
+           :links
+           ["tail=? AND head=? AND userid=?" tail head user]
+           {:tail tail :head head :weight weight :userid user}))
+        (doseq [node newnodes]
+          (sql/update-or-insert-values
+           :nodes
+           ["id=?" (:id node)]
+           node))))
     {:status 200
      :headers {"Content-Type" "application/json"}
      :body (json/write-str {:nodes newnodes 
@@ -173,7 +179,6 @@
        (friend/authorize #{::user} "Authorized page 2."))
   (GET "/admin" request
        (friend/authorize #{::admin} "Only admins can see this page."))
-  #_(ANY "/logout" request (update-in (ring.util.response/redirect "/login") [:session] dissoc :cemerick.friend/identity))
   (friend/logout (ANY "/logout" request (ring.util.response/redirect "/")))
   (route/resources "/" {:root "public"})
   (route/not-found "<h1>Page not found</h1>"))
@@ -189,7 +194,16 @@
                    :access-token-parsefn access-token-parsefn
                    :config-auth config-auth})]})))
 
+(defn init
+  "runs when the application starts and checks if the database
+   schema exists, calls schema/create-tables if not."
+  []
+  (if-not (schema/actualized?)
+    (schema/actualize)))
+
 (defn -main [port]
-  (jetty/run-jetty 
-   handler
-   {:port (Integer. port) :join? false}))
+  (do
+    (init)
+    (jetty/run-jetty 
+     handler
+     {:port (Integer. port) :join? false})))

@@ -17,9 +17,13 @@
                  [friend-oauth2 "0.0.4" 
                   :exclusions [[org.apache.httpcomponents/httpcore] 
                                [com.cemerick/friend]]]
-                 [enlive "1.1.4"]]
+                 [enlive "1.1.4"]
+                 [org.clojure/core.typed "0.2.13"]
+                 [lobos "1.0.0-beta1"]]
   :plugins [[lein-cljsbuild "0.3.2"]
-            [lein-ring "0.8.3"]]
+            [lein-ring "0.8.3"]
+            [lein-typed "0.3.0"]
+            [lein-lobos "1.0.0-beta1"]]
   :uberjar-name "metrocene-standalone.jar"
   :hooks [leiningen.cljsbuild]
   :source-paths ["src/clj"]
@@ -32,4 +36,5 @@
                    :pretty-print true}
         :jar true}}}
   :min-lein-version "2.0.0"
-  :ring {:handler metrocene.core/handler})
+  :ring {:handler metrocene.core/handler}
+  :core.typed {:check [metrocene.core]})
