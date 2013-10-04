@@ -104,7 +104,8 @@
                 (fb-auth/with-facebook-auth 
                   {:access-token (-> session :cemerick.friend/identity 
                                      :authentications first val :access_token)}
-                  (fb-client/get [:me] {:extract :body}))))]
+                  (fb-client/get [:me] {:extract :body}))))
+        group "0"]
     (when user
       (sql/with-connection db
         (doseq [{tail :tail head :head weight :weight}
@@ -113,13 +114,19 @@
                   #(merge %1 {:weight (+ (:weight %2) 
                                          (:weight %1))})
                   (sql/with-query-results results
-                    ["select * from links"]
+                    ["select * from grouplinks"]
                     (into {} (array->map results)))
                   diff-links))]
           (sql/update-or-insert-values
+           :grouplinks
+           ["tail=? AND head=? AND groupid=?" tail head group]
+           {:tail tail :head head :weight weight :groupid group}))
+        (doseq [{tail :tail head :head weight :weight} links]
+          (sql/update-or-insert-values
            :links
-           ["tail=? AND head=? AND userid=?" tail head user]
-           {:tail tail :head head :weight weight :userid user}))
+           ["tail=? AND head=? AND userid=? AND groupid=?" 
+            tail head user group]
+           {:tail tail :head head :weight weight :userid user :groupid group}))
         (doseq [node newnodes]
           (sql/update-or-insert-values
            :nodes
@@ -132,7 +139,7 @@
                                            :colour (if (< (:weight %) 0)
                                                      :neg :pos)) 
                                         links)})
-     :session {:data {:nodes newnodes :links links}}}))
+     :session (merge session {:data {:nodes newnodes :links links}})}))
 
 ;; OAuth2 config
 (defn access-token-parsefn

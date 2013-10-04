@@ -24,14 +24,6 @@
      {:name "Increased Environmental Regulation"    :x 200 :y 300}
      {:name "Global Investment"    :x 700 :y 300})))
 
-#_(defn create-links []
-  (sql/with-connection db
-    (sql/create-table :links
-      [:id :serial "PRIMARY KEY"]
-      [:tail :integer "NOT NULL"]      
-      [:head :integer "NOT NULL"]      
-      [:weight :integer "NOT NULL"])))
-
 (defn -main []
   (print "Creating database structure...") (flush)
   (create-nodes)

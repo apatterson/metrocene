@@ -23,3 +23,24 @@
                (table :links
                       (column :userid)))))
 
+(defmigration add-groups
+  (up []
+      (alter :add
+             (table :links
+                    (varchar :groupid 30 (default "0") :not-null))))
+  (down [] 
+        (alter :drop
+               (table :links
+                      (column :groupid)))))
+
+
+(defmigration add-grouplinks-table
+  (up [] 
+      (create
+       (table :grouplinks
+              (integer :id :auto-inc :primary-key)
+              (integer :head :not-null)
+              (integer :tail :not-null)
+              (integer :weight :not-null)
+              (varchar :groupid 30 :not-null))))
+  (down [] (drop (table :grouplinks))))
