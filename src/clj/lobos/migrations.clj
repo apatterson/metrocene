@@ -17,7 +17,7 @@
   (up []
       (alter :add
              (table :links
-                    (varchar :userid 30 :not-null))))
+                    (varchar :userid 30 (default "0") :not-null))))
   (down [] 
         (alter :drop
                (table :links
