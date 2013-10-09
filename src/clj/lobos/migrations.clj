@@ -3,7 +3,7 @@
    :exclude [alter drop bigint boolean char double float time])
   (:use (lobos [migration :only [defmigration]] core schema config)))
 
-(defmigration add-links-table
+#_(defmigration add-links-table
   (up [] 
       (create
        (table :links
