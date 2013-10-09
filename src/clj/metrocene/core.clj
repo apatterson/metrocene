@@ -45,7 +45,13 @@
 
 (ann json [Map -> Response])
 (defn json [req]
-  (let [data (if-let [d (-> req :session :data)]
+  (let [user (if (-> req :session :cemerick.friend/identity)
+               (:id
+                (fb-auth/with-facebook-auth 
+                  {:access-token (-> req :session :cemerick.friend/identity 
+                                     :authentications first val :access_token)}
+                  (fb-client/get [:me] {:extract :body}))))
+        data (if-let [d (-> req :session :data)]
                d
                {:nodes
                 (sql/with-connection 
@@ -57,7 +63,7 @@
                 (sql/with-connection 
                   db
                   (sql/with-query-results results
-                    ["select * from links"]
+                    ["select * from links where userid=?" user]
                     (into [] results)))})]
     {:status 200
      :headers {"Content-Type" "application/json"}
