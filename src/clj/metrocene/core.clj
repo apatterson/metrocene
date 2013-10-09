@@ -41,7 +41,7 @@
                             :authentications first val :access_token)}
          (fb-client/get [:me] {:extract :body})))
       ". " [:a {:href "/logout"} "Logout"])
-     (enlive/html [:a {:href "/login"} "Please login"]))))
+     (enlive/html [:a {:href "/login"} "Login with Facebook.."]))))
 
 (ann json [Map -> Response])
 (defn json [req]
@@ -93,11 +93,13 @@
         links-key (fn [d] (str (:tail d) "-" (:head d)))
         array->map (fn [m] (into {} (map #(vector (links-key %) %) m)))
         links-map (array->map links)
-        old-links (if-let [l (-> session :data :links)]
-                    l [])
+        old-links (sql/with-connection db
+                    (sql/with-query-results results
+                      ["select * from links"]
+                      (into {} (array->map results))))
         diff-links (merge-with #(merge %1 {:weight (- (:weight %2) 
                                                       (:weight %1))})
-                               (array->map old-links) 
+                               old-links 
                                links-map)
         user (if (-> session :cemerick.friend/identity)
                (:id
