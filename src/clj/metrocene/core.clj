@@ -51,20 +51,29 @@
                   {:access-token (-> req :session :cemerick.friend/identity 
                                      :authentications first val :access_token)}
                   (fb-client/get [:me] {:extract :body}))))
-        data (if-let [d (-> req :session :data)]
-               d
-               {:nodes
+        d (-> req :session :data)
+        data (if user
+               {:nodes ;;logged in user - get from user tables
                 (sql/with-connection 
                   db
                   (sql/with-query-results results
-                    ["select * from nodes"]
+                    ["select * from nodes where userid=?" user]
                     (into [] results)))
                 :links
                 (sql/with-connection 
                   db
                   (sql/with-query-results results
                     ["select * from links where userid=?" user]
-                    (into [] results)))})]
+                    (into [] results)))}
+               (if d 
+                 d ;; not logged in - retrieve from session
+                 {:nodes ;; or get defaults from group
+                  (sql/with-connection 
+                    db
+                    (sql/with-query-results results
+                      ["select * from groupnodes"]
+                      (into [] results)))
+                  :links []}))]
     {:status 200
      :headers {"Content-Type" "application/json"}
      :body (json/write-str data)}))
@@ -136,10 +145,12 @@
             tail head user group]
            {:tail tail :head head :weight weight :userid user :groupid group}))
         (doseq [node newnodes]
-          (sql/update-or-insert-values
-           :nodes
-           ["id=?" (:id node)]
-           node))))
+          (try
+            (sql/update-or-insert-values
+             :nodes
+             ["id=?" (:id node)]
+             (assoc node :userid user))
+            (catch java.sql.BatchUpdateException e (println e (.getNextException e)))))))
     {:status 200
      :headers {"Content-Type" "application/json"}
      :body (json/write-str {:nodes newnodes 
