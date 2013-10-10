@@ -74,6 +74,10 @@
                       ["select * from groupnodes"]
                       (into [] results)))
                   :links []}))]
+    (println "User: " user)
+    (println "Session data: " d)
+    (println "Data: " data)
+    (println "Authorised? " (friend/authorized? #{::user} friend/*identity*))
     {:status 200
      :headers {"Content-Type" "application/json"}
      :body (json/write-str data)}))
