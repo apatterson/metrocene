@@ -226,7 +226,7 @@
                     :uri-config uri-config
                     :access-token-parsefn access-token-parsefn
                     :config-auth config-auth})]})
-    {:store (cookie/cookie-store {:key "metrc678agp./456"})})))
+    {:store (cookie/cookie-store {:key (System/getenv "SECRET")})})))
 
 (defn init
   "runs when the application starts and checks if the database
