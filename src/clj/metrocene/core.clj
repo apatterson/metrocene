@@ -5,6 +5,8 @@
             [ring.adapter.jetty :as jetty]
             [ring.middleware.resource :as resources]
             [ring.middleware.content-type :as content-type]
+            [ring.middleware.session :as session] 
+            [ring.middleware.session.cookie :as cookie]
             [ring.util.response :as response]
             [clojure.core.matrix :as matrix]
             [clojure.java.io :as io]
@@ -215,14 +217,16 @@
 
 (def handler 
   (handler/site 
-   (friend/authenticate
-    app
-    {:allow-anon? true
-     :workflows [(oauth2/workflow
-                  {:client-config client-config
-                   :uri-config uri-config
-                   :access-token-parsefn access-token-parsefn
-                   :config-auth config-auth})]})))
+   (session/wrap-session
+    (friend/authenticate
+     app
+     {:allow-anon? true
+      :workflows [(oauth2/workflow
+                   {:client-config client-config
+                    :uri-config uri-config
+                    :access-token-parsefn access-token-parsefn
+                    :config-auth config-auth})]})
+    {:store (cookie/cookie-store {:key "metrc678agp./456"})})))
 
 (defn init
   "runs when the application starts and checks if the database
