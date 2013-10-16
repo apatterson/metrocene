@@ -1,3 +1,7 @@
+html { 
+    -ms-touch-action: none; /* Direct all pointer events to JavaScript code. */
+}
+
 svg.start {
     width: 100%;
     height: 500px;
