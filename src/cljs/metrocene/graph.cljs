@@ -150,7 +150,7 @@
                       (.attr "class" #(str "link " 
                                            (if (< (:weight %) 0) "neg" "pos"))))
          line (-> new-link
-                  (.append "line"))
+                  (.append "polyline"))
          changes (->
                   (if (= state :connected)
                     (assoc-in 
@@ -249,12 +249,15 @@
          (.text #(:name %)))
      (-> svg 
          (.attr "class" (name state)))
-     (-> svg (.selectAll ".link line")
+     (-> svg (.selectAll ".link polyline")
          (.data links)
-         (.attr {:x1 (find-node :x :tail)
-                 :x2 (find-node :x :head)
-                 :y1 (find-node :y :tail)
-                 :y2 (find-node :y :head)})                      
+         (.attr {:points (fn [d i] 
+                           (let
+                               [x1 (:x (nth nodes (:tail d)))
+                                y1 (:y (nth nodes (:tail d)))
+                                x2 (:x (nth nodes (:head d)))
+                                y2 (:y (nth nodes (:head d)))]
+                             [x1 y1 x2 y2]))})                      
          (.style "stroke"
                  #(let [colour-scheme color-brewer/RdYlBu-11 
                         colour-scale
