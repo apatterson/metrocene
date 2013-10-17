@@ -205,8 +205,7 @@
          new-node (-> node 
                       .enter 
                       (.append "g"))
-         find-node (fn [coord posn]
-                     (fn [d i] (coord (nth nodes (posn d)))))]
+         radius 20]
      (if (= state :connected) (post changes))
      (-> svg (.selectAll "g.link")
          (.attr "class" #(str "link " 
@@ -242,10 +241,10 @@
          (.style "fill" #(:colour %)))
      (-> new-node
          (.append "circle")
-         (.attr "r" 20))
+         (.attr "r" radius))
      (-> new-node 
          (.append "text")
-         (.attr {:x 20 :y -20})
+         (.attr {:x radius :y radius})
          (.text #(:name %)))
      (-> svg 
          (.attr "class" (name state)))
@@ -253,11 +252,31 @@
          (.data links)
          (.attr {:points (fn [d i] 
                            (let
-                               [x1 (:x (nth nodes (:tail d)))
-                                y1 (:y (nth nodes (:tail d)))
-                                x2 (:x (nth nodes (:head d)))
-                                y2 (:y (nth nodes (:head d)))]
-                             [x1 y1 x2 y2]))})                      
+                               [xtm (:x (nth nodes (:tail d)))
+                                ytm (:y (nth nodes (:tail d)))
+                                xhm (:x (nth nodes (:head d)))
+                                yhm (:y (nth nodes (:head d)))
+                                alpha (.atan js/Math (/ (- ytm yhm)
+                                                        (- xtm xhm)))
+                                ltrgt (if (< xtm xhm) - +)
+                                l 15
+                                offset-x (fn [x da] 
+                                           (ltrgt x 
+                                                  (* l 
+                                                     (.cos js/Math (+ alpha da)))))
+                                offset-y (fn [y da] 
+                                           (ltrgt y 
+                                              (* l 
+                                                 (.sin js/Math (+ alpha da)))))
+                                xhe (offset-x xhm 0)
+                                yhe (offset-y yhm 0)]
+                             [xtm ytm xhe yhe 
+                              (offset-x xhe .3) 
+                              (offset-y yhe .3) 
+                              xhe yhe
+                              (offset-x xhe -0.3) 
+                              (offset-y yhe -0.3)]))})
+         (.attr "fill" "none")
          (.style "stroke"
                  #(let [colour-scheme color-brewer/RdYlBu-11 
                         colour-scale

@@ -7,8 +7,12 @@ svg.start {
     height: 500px;
 }
 
-line {
+.link polyline {
     stroke: green;
+    stroke-width: 3;
+}
+line.connect {
+    stroke: black;
     stroke-width: 3;
 }
 
@@ -17,11 +21,9 @@ line:hover {
 }
 
 .pos line{
-    marker-end:url(#marker);
     stroke:green;
 }
 .neg line {
-    marker-end:url(#neg-marker);
     stroke:red;
 }
 .node text {
