@@ -60,7 +60,12 @@
                   db
                   (sql/with-query-results results
                     ["select * from nodes where userid=?" user]
-                    (into [] results)))
+                    (into [] results)
+                    (if (> (count results) 0)
+                      results
+                      (sql/with-query-results group-results
+                        ["select * from groupnodes"]
+                        (into [] group-results)))))
                 :links
                 (sql/with-connection 
                   db
@@ -76,10 +81,6 @@
                       ["select * from groupnodes"]
                       (into [] results)))
                   :links []}))]
-    (println "User: " user)
-    (println "Session data: " d)
-    (println "Data: " data)
-    (println "Authorised? " (friend/authorized? #{::user} friend/*identity*))
     {:status 200
      :headers {"Content-Type" "application/json"}
      :body (json/write-str data)}))
@@ -88,9 +89,38 @@
   (let [nodes (:nodes (edn/read-string data))
         links (:links (edn/read-string data))
         dim (count nodes)
+        links-key (fn [d] (str (:tail d) "-" (:head d)))
+        array->map (fn [m] (into {} (map #(vector (links-key %) %) m)))
+        links-map (array->map links)
+        user (if (-> session :cemerick.friend/identity)
+               (:id
+                (fb-auth/with-facebook-auth 
+                  {:access-token (-> session :cemerick.friend/identity 
+                                     :authentications first val :access_token)}
+                  (fb-client/get [:me] {:extract :body}))))
+        old-links (sql/with-connection db
+                    (sql/with-query-results results
+                      ["select * from links where userid=?" user]
+                      (into {} (array->map results))))
+        p1 (println "old-links: " old-links)
+        diff-links (merge-with #(merge %1 {:weight (- (:weight %2) 
+                                                      (:weight %1))})
+                               old-links 
+                               links-map)
+        p2 (println "diff-links: " diff-links)
+        merged-links (vals
+                      (merge-with
+                       #(merge %1 {:weight (+ (:weight %2) 
+                                              (:weight %1))})
+                       (sql/with-connection db
+                         (sql/with-query-results results
+                           ["select * from grouplinks"]
+                           (into {} (array->map results))))
+                       diff-links))
+        p3 (println "merged-links: " merged-links)
         blank (matrix/matrix (repeat dim (repeat dim 0)))
         causes (reduce #(matrix/mset %1 (:head %2) (:tail %2)
-                                     (:weight %2)) blank links)
+                                     (:weight %2)) blank merged-links)
         states (matrix/matrix (repeat dim (repeat 1 1)))
         gain 0.1
         squash (fn [out] (matrix/emap 
@@ -111,35 +141,10 @@
         newnodes (map #(assoc (nth nodes %) 
                          :colour (col-class (first (get minusahalf %))))
                       (range (count nodes)))
-        links-key (fn [d] (str (:tail d) "-" (:head d)))
-        array->map (fn [m] (into {} (map #(vector (links-key %) %) m)))
-        links-map (array->map links)
-        old-links (sql/with-connection db
-                    (sql/with-query-results results
-                      ["select * from links"]
-                      (into {} (array->map results))))
-        diff-links (merge-with #(merge %1 {:weight (- (:weight %2) 
-                                                      (:weight %1))})
-                               old-links 
-                               links-map)
-        user (if (-> session :cemerick.friend/identity)
-               (:id
-                (fb-auth/with-facebook-auth 
-                  {:access-token (-> session :cemerick.friend/identity 
-                                     :authentications first val :access_token)}
-                  (fb-client/get [:me] {:extract :body}))))
         group "0"]
     (when user
       (sql/with-connection db
-        (doseq [{tail :tail head :head weight :weight}
-                (vals
-                 (merge-with
-                  #(merge %1 {:weight (+ (:weight %2) 
-                                         (:weight %1))})
-                  (sql/with-query-results results
-                    ["select * from grouplinks"]
-                    (into {} (array->map results)))
-                  diff-links))]
+        (doseq [{tail :tail head :head weight :weight} merged-links]
           (sql/update-or-insert-values
            :grouplinks
            ["tail=? AND head=? AND groupid=?" tail head group]
@@ -160,10 +165,7 @@
     {:status 200
      :headers {"Content-Type" "application/json"}
      :body (json/write-str {:nodes newnodes 
-                            :links (map #(assoc % 
-                                           :colour (if (< (:weight %) 0)
-                                                     :neg :pos)) 
-                                        links)})
+                            :links links})
      :session (merge session {:data {:nodes newnodes :links links}})}))
 
 ;; OAuth2 config

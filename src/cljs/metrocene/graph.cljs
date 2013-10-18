@@ -43,7 +43,30 @@
     (.append "svg:path")
     (.attr "d", "M0,1L3,1L3,2L0,2"))
 
-
+(defn make-arrow 
+  "Given a start point and end point corresponding to the mid points of two 
+circles, return a set of points defining an arrow from the edges of the circles"
+  [d i xtm ytm xhm yhm]
+  (let [alpha (.atan js/Math (/ (- ytm yhm)
+                                (- xtm xhm)))
+        ltrgt (if (< xtm xhm) - +)
+        l 15
+        offset-x (fn [x da] 
+                   (ltrgt x 
+                          (* l 
+                             (.cos js/Math (+ alpha da)))))
+        offset-y (fn [y da] 
+                   (ltrgt y 
+                          (* l 
+                             (.sin js/Math (+ alpha da)))))
+        xhe (offset-x xhm 0)
+        yhe (offset-y yhm 0)]
+    [xtm ytm xhe yhe 
+     (offset-x xhe .3) 
+     (offset-y yhe .3) 
+     xhe yhe
+     (offset-x xhe -0.3) 
+     (offset-y yhe -0.3)]))
 
 (def data-chan (chan))
 (def drag-chan (chan))
@@ -81,9 +104,16 @@
                                     :head nil})
                      (recur end end end-state)))
      (if (= state :connecting)
-       (-> svg (.selectAll "line.connect")
-           (.attr {:x2 (.-x e)
-                   :y2 (.-y e)})))
+       (-> svg (.selectAll "polyline.connect")
+           (.attr {:points #(this-as this
+                                     (make-arrow %1 
+                                                 %2 
+                                                 (-> this .-points 
+                                                     (.getItem 0) .-x)
+                                                 (-> this .-points
+                                                     (.getItem 0) .-y)
+                                                 (.-x e)
+                                                 (.-y e)))})))
      (if (= state :seeking)
        (-> d3 (.select this)
            (.style "opacity" 0.3))
@@ -92,22 +122,25 @@
      (when-not (= target new-target) ;;target changed
        (cond (and (= tail end) (= state :seeking))
              (do
-               (-> svg (.selectAll "line.connect")
+               (-> svg (.selectAll "polyline.connect")
                    (.data [1])
                    .enter
-                   (.append "line")
-                   (.attr {:class "connect"})
-                   (.attr {:x1 (:x nt-datum)
-                           :y1 (:y nt-datum)
-                           :x2 (.-x e)
-                           :y2 (.-y e)}))
+                   (.append "polyline")
+                   (.attr {:class "connect"
+                           :fill "none"})
+                   (.attr {:points #(make-arrow %1 
+                                                %2 
+                                                (:x nt-datum)
+                                                (:y nt-datum)
+                                                (.-x e)
+                                                (.-y e))}))
                (>! data-chan {:state :connecting
                               :tail new-target
                               :head end})
                (recur new-target new-target :connecting))
              (and (> tail end) (= state :connecting) (> new-target end))
              (do
-               (-> svg (.selectAll "line.connect")
+               (-> svg (.selectAll "polyline.connect")
                    (.data [])
                    .exit
                    .remove)
@@ -249,33 +282,12 @@
      (-> svg 
          (.attr "class" (name state)))
      (-> svg (.selectAll ".link polyline")
-         (.data links)
          (.attr {:points (fn [d i] 
-                           (let
-                               [xtm (:x (nth nodes (:tail d)))
-                                ytm (:y (nth nodes (:tail d)))
-                                xhm (:x (nth nodes (:head d)))
-                                yhm (:y (nth nodes (:head d)))
-                                alpha (.atan js/Math (/ (- ytm yhm)
-                                                        (- xtm xhm)))
-                                ltrgt (if (< xtm xhm) - +)
-                                l 15
-                                offset-x (fn [x da] 
-                                           (ltrgt x 
-                                                  (* l 
-                                                     (.cos js/Math (+ alpha da)))))
-                                offset-y (fn [y da] 
-                                           (ltrgt y 
-                                              (* l 
-                                                 (.sin js/Math (+ alpha da)))))
-                                xhe (offset-x xhm 0)
-                                yhe (offset-y yhm 0)]
-                             [xtm ytm xhe yhe 
-                              (offset-x xhe .3) 
-                              (offset-y yhe .3) 
-                              xhe yhe
-                              (offset-x xhe -0.3) 
-                              (offset-y yhe -0.3)]))})
+                           (make-arrow d i
+                                       (:x (nth nodes (:tail d)))
+                                       (:y (nth nodes (:tail d)))
+                                       (:x (nth nodes (:head d)))
+                                       (:y (nth nodes (:head d)))))})
          (.attr "fill" "none")
          (.style "stroke"
                  #(let [colour-scheme color-brewer/RdYlBu-11 

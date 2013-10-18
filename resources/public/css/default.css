@@ -11,7 +11,7 @@ svg.start {
     stroke: green;
     stroke-width: 3;
 }
-line.connect {
+polyline.connect {
     stroke: black;
     stroke-width: 3;
 }
