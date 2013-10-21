@@ -7,10 +7,12 @@
 
 (strokes/bootstrap)
 
+(.log js/console (-> d3 (.selectAll "svg")))
+
 (def svg (-> d3 
-             (.select "#metrocene") 
-             (.append "svg")
-             (.attr {:width 900 :height 600})))
+             (.selectAll "svg") 
+             (.append "g")
+             (.attr "class" "layer2")))
 
 (defn make-marker [parent id]
   (-> parent

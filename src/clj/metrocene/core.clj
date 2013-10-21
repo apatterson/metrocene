@@ -31,7 +31,13 @@
 
 (def-alias Response '{:status Int :body String :headers Map})
   
+(enlive/defsnippet canvas "canvas.svg" [enlive/root]
+  []  
+  identity)
+
 (enlive/deftemplate index "venn.html" [{session :session}]
+  [:#metrocene]
+  (enlive/content (canvas))
   [:#login]
   (enlive/content 
    (if (friend/authorized? #{::user} friend/*identity*)
