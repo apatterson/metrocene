@@ -82,10 +82,13 @@ circles, return a set of points defining an arrow from the edges of the circles"
                                                  (-> this .-points
                                                      (.getItem 0) .-y)
                                                  (.-x e)
-                                                 (.-y e)))})))
+                                                 (.-y e)))
+                   :stroke #(if (< % 0) "red" "blue")})))
      (if (= state :seeking)
-       (-> d3 (.select this)
-           (.style "opacity" 0.3))
+       (do (-> d3 (.select this)
+               (.style "opacity" 0.3)
+               (.attr {:x (.-x e)
+                       :y (.-y e)})))
        (-> d3 (.select this)
            (.style "opacity" 1)))
      (when-not (= target new-target) ;;target changed
@@ -208,27 +211,46 @@ circles, return a set of points defining an arrow from the edges of the circles"
                       .enter 
                       (.append "g"))
          radius 20]
-     (if (= state :connected) (post changes))
+     (if (= state :connected) 
+       (do
+         (-> svg (.select "#plus")
+             (.attr {:x 50
+                     :y 100}))
+         (-> svg (.select "#minus")
+             (.attr {:x 50
+                     :y 200}))
+         (post changes)))
      (-> svg (.selectAll "g.link")
          (.attr "class" #(str "link " 
                               (if (< (:weight %) 0) "neg" "pos"))))
      (-> svg (.selectAll "#plus")
          (.data [1])
-         (.call dragvote)
-         (.attr {:xlink:href "/img/up.png"
+         .enter
+         (.append "image")
+         (.attr {:xlink:href "/img/up.svg"
                  :x 50
                  :y 100
                  :width 30
-                 :height 30}))
+                 :height 30
+                 :id "plus"
+                 :class "vote"})
+         (.call dragvote)
+         (.append "title") 
+         (.text "Drag from here to make a positive link"))
      (-> svg (.selectAll "#minus")
          (.data [-1])
-         (.call dragvote)
-         (.attr {:xlink:href "/img/up.png"
-                 :transform "translate(50,200), scale(1,-1)"
-                 :x 0
-                 :y 0
+         .enter
+         (.append "image")
+         (.attr {:xlink:href "/img/down.svg"
+                 :x 50
+                 :y 200
                  :width 30
-                 :height 30}))
+                 :height 30
+                 :id "minus"
+                 :class "vote"})         
+         (.call dragvote)
+         (.append "title") 
+         (.text "Drag from here to make a negative link"))
      (-> node 
          (.call dragnode)
          (.attr {:class "node"
