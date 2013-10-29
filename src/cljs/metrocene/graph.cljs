@@ -325,6 +325,6 @@ circles, return a set of points defining an arrow from the edges of the circles"
     (.json "/json" 
            #(go 
              (let [d  (js->clj %1 :keywordize-keys true)]
-               (>! init-chan (:votes d))
+               (>! init-chan (if-let [v (:votes d)] v 20))
                (>! data-chan d)))))
 

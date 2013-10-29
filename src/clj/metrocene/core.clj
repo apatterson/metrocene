@@ -1,6 +1,7 @@
 (ns metrocene.core
   (:use compojure.core
-        metrocene.models.db)
+        metrocene.models.db
+        metrocene.user)
   (:require [clojure.data.json :as json]
             [ring.adapter.jetty :as jetty]
             [ring.middleware.resource :as resources]
@@ -40,7 +41,7 @@
   (enlive/content (canvas))
   [:#login]
   (enlive/content 
-   (if (friend/authorized? #{::user} friend/*identity*)
+   (if (friend/authorized? #{:metrocene.user/user} friend/*identity*)
      (enlive/html
       "You are logged in as "
       (:name 
@@ -121,10 +122,11 @@
         old-votes (if (seq v) 
                     (:votes (first v))
                     (do 
-                      (sql/with-connection db
-                        (sql/insert-record 
-                         :users
-                         {:userid user :votes 20 :reputation 1}))
+                      (when user
+                        (sql/with-connection db
+                          (sql/insert-record 
+                           :users
+                           {:userid user :votes 20 :reputation 1})))
                       20))
         old-links (sql/with-connection db
                     (sql/with-query-results results
@@ -197,35 +199,6 @@
                             :links links})
      :session (merge session {:data {:nodes newnodes :links links}})}))
 
-;; OAuth2 config
-(defn access-token-parsefn
-  [response]
-  (-> response
-      :body
-      ring.util.codec/form-decode
-      clojure.walk/keywordize-keys
-      :access_token))
-
-(def config-auth {:roles #{::user}})
-
-(def client-config
-  {:client-id (System/getenv "FACEBOOK_APP_ID")
-   :client-secret (System/getenv "FACEBOOK_SECRET")
-   :callback {:domain (System/getenv "FACEBOOK_CALLBACK") 
-              :path "/facebook.callback"}})
-
-(def uri-config
-  {:authentication-uri {:url "https://www.facebook.com/dialog/oauth"
-                        :query {:client_id (:client-id client-config)
-                                :redirect_uri (oauth2/format-config-uri 
-                                               client-config)}}
-   
-   :access-token-uri {:url "https://graph.facebook.com/oauth/access_token"
-                      :query {:client_id (:client-id client-config)
-                              :client_secret (:client-secret client-config)
-                              :redirect_uri (oauth2/format-config-uri 
-                                             client-config)
-                              :code ""}}})
 
 (defroutes app
   (GET "/login" [] (friend/authorize #{::user} {:status 200}))
@@ -271,4 +244,5 @@
     (init)
     (jetty/run-jetty 
      handler
-     {:port (Integer. port) :join? false})))
+     {:port (Integer. port) :join? false})
+    (inc-votes)))

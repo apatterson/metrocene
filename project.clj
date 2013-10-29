@@ -10,7 +10,7 @@
                  [compojure "1.1.5"]
                  [com.keminglabs/c2 "0.2.3"]
                  [com.keminglabs/vomnibus "0.3.1"]
-                 [org.clojure/java.jdbc "0.2.3"]
+                 [org.clojure/java.jdbc "0.3.0-alpha5"]
                  [postgresql "9.1-901.jdbc4"]
                  [com.cemerick/friend "0.2.0"]
                  [mavericklou/clj-facebook-graph "0.5.3"]

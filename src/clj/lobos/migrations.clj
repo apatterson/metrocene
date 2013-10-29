@@ -51,6 +51,15 @@
               (varchar :groupid 32 :not-null)))),
   (down [] (drop (table :grouplinks))))
 
+(defmigration add-users-table
+  (up [] 
+      (create
+       (table :users
+              (varchar :userid 32 :primary-key)
+              (integer :votes :not-null)
+              (integer :reputation :not-null)))),
+  (down [] (drop (table :users))))
+
 (defmigration add-node-entries
   (up 
    []
