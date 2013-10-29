@@ -48,8 +48,25 @@ circles, return a set of points defining an arrow from the edges of the circles"
                    (assoc-in [i :y] (.-y e)))})))
 
 (go
- (loop [tail nil target nil state nil]
-   (let [{e :event node :node end-state :state weight :weight this :this} 
+ (loop [tail nil target nil state nil votes 20]
+   (let [vote (-> svg (.selectAll "#votes")
+                   (.data [votes])) 
+         new-vote (-> vote 
+                      .enter
+                      (.append "g")
+                      (.attr {:transform "translate(50,300)"
+                              :id "votes"}))
+         vote-count-new (-> new-vote
+                        (.append "text"))
+         vote-count (-> vote (.selectAll "text")
+                        (.text votes))
+         lucre (-> new-vote 
+                   (.append "image")
+                   (.attr {:xlink:href "/img/votes.png"
+                           :width 30
+                           :height 30
+                           :id "votes"}))
+         {e :event node :node end-state :state weight :weight this :this} 
          (<! drag-chan)
          end -1
          [nt-datum x new-target] 
@@ -71,7 +88,7 @@ circles, return a set of points defining an arrow from the edges of the circles"
                      (>! data-chan {:state end-state
                                     :tail nil
                                     :head nil})
-                     (recur end end end-state)))
+                     (recur end end end-state votes)))
      (if (= state :connecting)
        (-> svg (.selectAll "polyline.connect")
            (.attr {:points #(this-as this
@@ -109,7 +126,7 @@ circles, return a set of points defining an arrow from the edges of the circles"
                (>! data-chan {:state :connecting
                               :tail new-target
                               :head end})
-               (recur new-target new-target :connecting))
+               (recur new-target new-target :connecting votes))
              (and (> tail end) (= state :connecting) (> new-target end))
              (do
                (-> svg (.selectAll "polyline.connect")
@@ -120,12 +137,12 @@ circles, return a set of points defining an arrow from the edges of the circles"
                               :tail tail
                               :head new-target
                               :weight weight})
-               (recur end end :connected))
+               (recur end end :connected votes))
              (= state :connected) 
              (do
                (>! data-chan {:state :done})
-               (recur end end :done))))
-     (recur tail new-target (if end-state end-state state)))))
+               (recur end end :done (dec votes)))))
+     (recur tail new-target (if end-state end-state state) votes))))
 
 (go
  (loop [d {:state :start}]
