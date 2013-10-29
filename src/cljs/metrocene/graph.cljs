@@ -108,7 +108,8 @@ circles, return a set of points defining an arrow from the edges of the circles"
                                                  (.-x e)
                                                  (.-y e)))
                    :stroke #(if (< % 0) "red" "blue")})))
-     (if (= state :seeking)
+     (if (and (= state :seeking)
+              (> votes 0))
        (do (-> d3 (.select this)
                (.style "opacity" 0.3)
                (.attr {:x (.-x e)
@@ -116,7 +117,7 @@ circles, return a set of points defining an arrow from the edges of the circles"
        (-> d3 (.select this)
            (.style "opacity" 1)))
      (when-not (= target new-target) ;;target changed
-       (cond (and (= tail end) (= state :seeking))
+       (cond (and (= tail end) (= state :seeking) (> votes 0))
              (do
                (-> svg (.selectAll "polyline.connect")
                    (.data [1])
@@ -144,12 +145,12 @@ circles, return a set of points defining an arrow from the edges of the circles"
                               :tail tail
                               :head new-target
                               :weight weight
-                              :votes (dec votes)})
+                              :votes (max 0 (dec votes))})
                (recur end end :connected votes))
              (= state :connected) 
              (do
                (>! data-chan {:state :done})
-               (recur end end :done (dec votes)))))
+               (recur end end :done (max 0 (dec votes))))))
      (recur tail new-target (if end-state end-state state) votes))))
 
 (go
