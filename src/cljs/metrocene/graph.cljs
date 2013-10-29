@@ -40,6 +40,8 @@ circles, return a set of points defining an arrow from the edges of the circles"
 (def data-chan (chan))
 (def drag-chan (chan))
 (def state-chan (chan))
+(def init-chan (chan))
+(def votes-chan (chan))
 
 (defn- drag-move [nodes e i]
   (go 
@@ -48,8 +50,9 @@ circles, return a set of points defining an arrow from the edges of the circles"
                    (assoc-in [i :y] (.-y e)))})))
 
 (go
- (loop [tail nil target nil state nil votes 20]
-   (let [vote (-> svg (.selectAll "#votes")
+ (while true
+   (let [votes (<! votes-chan) 
+         vote (-> svg (.selectAll "#votes")
                    (.data [votes])) 
          new-vote (-> vote 
                       .enter
@@ -65,7 +68,11 @@ circles, return a set of points defining an arrow from the edges of the circles"
                    (.attr {:xlink:href "/img/votes.png"
                            :width 30
                            :height 30
-                           :id "votes"}))
+                           :id "votes"}))])))
+
+(go
+ (loop [tail nil target nil state nil votes (<! init-chan)]
+   (let [v (>! votes-chan votes)
          {e :event node :node end-state :state weight :weight this :this} 
          (<! drag-chan)
          end -1
@@ -136,7 +143,8 @@ circles, return a set of points defining an arrow from the edges of the circles"
                (>! data-chan {:state :connected
                               :tail tail
                               :head new-target
-                              :weight weight})
+                              :weight weight
+                              :votes (dec votes)})
                (recur end end :connected votes))
              (= state :connected) 
              (do
@@ -152,6 +160,7 @@ circles, return a set of points defining an arrow from the edges of the circles"
           state :state 
           tail :tail
           head :head
+          votes :votes
           weight :weight} new-data
          post (fn [data] 
                 (-> d3 (.xhr "/json")
@@ -190,8 +199,9 @@ circles, return a set of points defining an arrow from the edges of the circles"
                          :tail tail
                          :head head}})))
                     new-data)
-                  (assoc-in [:state] state))
-         p (.log js/console state (:state changes))
+                  (assoc-in [:state] state)
+                  (assoc-in [:votes] votes))
+         p (.log js/console (:votes changes) state)
          dragmove #(drag-move nodes (.-event d3) %2)
          node (-> svg (.selectAll "g.node")
                   (.data nodes #(:id %)))
@@ -310,5 +320,10 @@ circles, return a set of points defining an arrow from the edges of the circles"
                     (colour-scale (:weight %)))))
      (recur changes))))
 
-(-> d3 (.json "/json" #(go (>! data-chan (js->clj %1 :keywordize-keys true)))))
+(-> d3 
+    (.json "/json" 
+           #(go 
+             (let [d  (js->clj %1 :keywordize-keys true)]
+               (>! init-chan (:votes d))
+               (>! data-chan d)))))
 

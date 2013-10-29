@@ -61,7 +61,16 @@
                   (fb-client/get [:me] {:extract :body}))))
         d (-> req :session :data)
         data (if user
-               {:nodes ;;logged in user - get from user tables
+               {:votes
+                (-> 
+                 (sql/with-connection
+                   db
+                   (sql/with-query-results results
+                     ["select votes from users where userid=?" user]
+                     (into [] results)))
+                 first
+                 :votes) 
+                :nodes ;;logged in user - get from user tables
                 (sql/with-connection 
                   db
                   (sql/with-query-results results
@@ -94,6 +103,7 @@
 (defn post [{{data :data} :params session :session}]
   (let [nodes (:nodes (edn/read-string data))
         links (:links (edn/read-string data))
+        votes (:votes (edn/read-string data))
         dim (count nodes)
         links-key (fn [d] (str (:tail d) "-" (:head d)))
         array->map (fn [m] (into {} (map #(vector (links-key %) %) m)))
@@ -104,16 +114,26 @@
                   {:access-token (-> session :cemerick.friend/identity 
                                      :authentications first val :access_token)}
                   (fb-client/get [:me] {:extract :body}))))
+        v (sql/with-connection db
+            (sql/with-query-results results
+              ["select votes from users where userid=?" user]
+              (into [] results)))
+        old-votes (if (seq v) 
+                    (:votes (first v))
+                    (do 
+                      (sql/with-connection db
+                        (sql/insert-record 
+                         :users
+                         {:userid user :votes 20 :reputation 1}))
+                      20))
         old-links (sql/with-connection db
                     (sql/with-query-results results
                       ["select * from links where userid=?" user]
                       (into {} (array->map results))))
-        p1 (println "old-links: " old-links)
         diff-links (merge-with #(merge %1 {:weight (- (:weight %2) 
                                                       (:weight %1))})
                                old-links 
                                links-map)
-        p2 (println "diff-links: " diff-links)
         merged-links (vals
                       (merge-with
                        #(merge %1 {:weight (+ (:weight %2) 
@@ -123,7 +143,6 @@
                            ["select * from grouplinks"]
                            (into {} (array->map results))))
                        diff-links))
-        p3 (println "merged-links: " merged-links)
         blank (matrix/matrix (repeat dim (repeat dim 0)))
         causes (reduce #(matrix/mset %1 (:head %2) (:tail %2)
                                      (:weight %2)) blank merged-links)
@@ -150,6 +169,10 @@
         group "0"]
     (when user
       (sql/with-connection db
+        (sql/update-or-insert-values
+         :users
+         ["userid=?" user]
+         {:userid user :votes votes})
         (doseq [{tail :tail head :head weight :weight} merged-links]
           (sql/update-or-insert-values
            :grouplinks
