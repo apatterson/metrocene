@@ -1,8 +1,8 @@
 (defproject metrocene "0.0.1-SNAPSHOT"
   :dependencies [[ring "1.2.0"]
                  [org.clojure/clojure "1.5.1"]
-                 [org.clojure/clojurescript "0.0-1859"]
-                 [org.clojure/core.async "0.1.222.0-83d0c2-alpha"]
+                 [org.clojure/clojurescript "0.0-1978"]
+                 [org.clojure/core.async "0.1.242.0-44b1e3-alpha"]
                  [org.clojure/data.json "0.2.0"]
                  [clatrix "0.3.0"]
                  [net.drib/strokes "0.5.0"]
@@ -20,7 +20,7 @@
                  [enlive "1.1.4"]
                  [org.clojure/core.typed "0.2.13"]
                  [lobos "1.0.0-beta1"]]
-  :plugins [[lein-cljsbuild "0.3.2"]
+  :plugins [[lein-cljsbuild "0.3.4"]
             [lein-ring "0.8.3"]
             [lein-typed "0.3.0"]
             [lein-lobos "1.0.0-beta1"]]
@@ -32,8 +32,9 @@
       :main {
         :source-paths ["src/cljs"]
         :compiler {:output-to "resources/public/js/cljs.js"
-                   :optimizations :simple
-                   :pretty-print true}
+                   :output-dir "resources/public/js"
+                   :optimizations :none
+                   :source-map true}
         :jar true}}}
   :min-lein-version "2.0.0"
   :ring {:handler metrocene.core/handler}
